@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Faculty Scheduler</title>
-    
+
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -19,62 +19,93 @@
             border-bottom: 2px solid #ddd;
             padding-bottom: 10px;
         }
-        
+        h2 {
+             color: #004a9c;
+             border-bottom: 1px solid #ddd;
+             padding-bottom: 8px;
+             margin-top: 30px; /* Add space above h2 */
+        }
+
         /* --- Navigation Styles --- */
         nav {
             margin-bottom: 20px;
             display: flex;
             flex-wrap: wrap;
             gap: 10px;
+            align-items: center; /* Vertically align items */
         }
         nav button {
-            font-size: 1.1em;
-            padding: 10px 15px;
+            font-size: 1.0em; /* Slightly smaller */
+            padding: 8px 12px;
             border: none;
             background-color: #ddd;
             color: #333;
             cursor: pointer;
             border-radius: 5px;
+            transition: background-color 0.2s;
+        }
+        nav button:hover {
+            background-color: #ccc;
         }
         nav button.active {
             background-color: #004a9c;
             color: white;
             font-weight: bold;
         }
+        /* Rerun button specific style */
         #rerun-button {
             background-color: #1a73e8;
             color: white;
-            margin-left: auto; /* Pushes it to the right */
+            margin-left: auto; /* Pushes action buttons to the right */
+            font-size: 1.1em; /* Make rerun slightly larger */
+            padding: 10px 15px;
         }
         #rerun-button:hover {
             background-color: #185abc;
         }
+        #rerun-button:disabled {
+            background-color: #aaa;
+            color: #eee;
+            cursor: not-allowed;
+        }
         /* --- End Nav Styles --- */
 
         #status-message {
-            font-size: 1.2em;
+            font-size: 1.1em; /* Slightly smaller */
             font-weight: bold;
-            margin-bottom: 10px; /* Reduced margin */
-            padding: 15px;
+            margin-bottom: 10px;
+            padding: 12px;
             border-radius: 5px;
             transition: background-color 0.3s, color 0.3s;
+            border: 1px solid transparent;
         }
         #status-message.success {
             color: #155724;
             background-color: #d4edda;
-            border: 1px solid #c3e6cb;
+            border-color: #c3e6cb;
         }
         #status-message.failure {
             color: #721c24;
             background-color: #f8d7da;
-            border: 1px solid #f5c6cb;
+            border-color: #f5c6cb;
         }
         #status-message.improved {
             color: #004085;
             background-color: #cce5ff;
-            border: 1px solid #b8daff;
+            border-color: #b8daff;
         }
-        
+         #status-message.info { /* For multi-heuristic status */
+             color: #0c5460;
+             background-color: #d1ecf1;
+             border-color: #bee5eb;
+        }
+         #status-message.aborted { /* For aborted status */
+             color: #856404;
+             background-color: #fff3cd;
+             border-color: #ffeeba;
+         }
+
+
         /* --- Progress Bar Styles --- */
         #progress-container {
             width: 100%;
@@ -89,7 +120,7 @@
             font-family: monospace;
             color: #333;
         }
-        
+
         #progress-bar-outline {
             width: 100%;
             height: 20px;
@@ -111,11 +142,13 @@
             color: #555;
         }
         /* --- End Progress Bar Styles --- */
-        
+
+        /* Container for cards */
         .card-container {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 15px;
+            margin-bottom: 20px; /* Add space below card sets */
         }
         .schedule-card {
             background-color: #ffffff;
@@ -139,8 +172,8 @@
         }
         .card-body strong { color: #000; } /* Default 'happy' style */
         .card-body em { color: #888; }
-        
-        /* --- CSS FIX: Increased specificity --- */
+
+        /* Style for unhappy placements */
         .card-body strong.unhappy {
             color: #DBDBDB; /* Light Grey Text */
             background-color: crimson; /* Crimson Red Background */
@@ -153,16 +186,16 @@
 <body>
 
     <h1>Faculty Scheduler (55 Faculty)</h1>
-    
+
     <nav>
         <button id="nav-scheduler" class="active">Scheduler Result</button>
         <button id="nav-availability">Faculty Availability</button>
         <button id="rerun-button">Generate New Schedule</button>
     </nav>
-    
+
     <main id="page-scheduler">
         <div id="status-message">Loading...</div>
-        
+
         <div id="progress-container">
             <div id="stats-container">
                 <div id="timer-label">Time: 0.0s</div>
@@ -173,18 +206,107 @@
             </div>
             <div id="progress-label">Starting...</div>
         </div>
-        
-        <div id="schedule-container" class="card-container"></div>
+
+        <div id="schedule-container" class="card-container">
+             </div>
     </main>
-    
+
     <main id="page-availability" style="display: none;">
         <h2>Faculty Availability (55 Faculty)</h2>
         <div id="availability-container" class="card-container"></div>
     </main>
 
     <script>
-        
-        // --- HELPER FUNCTIONS (shuffle, formatTime, yield) ---
+
+        // --- EMBEDDED WORKER CODE ---
+        const workerCode = `
+            // --- scheduler_worker.js content START ---
+
+            // --- HELPER FUNCTIONS (needed by the solver) ---
+            function shuffleArray(array) {
+                for (let i = array.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [array[i], array[j]] = [array[j], array[i]];
+                }
+                return array;
+            }
+
+            function yieldWorker() {
+                return new Promise(resolve => setTimeout(resolve, 0));
+            }
+
+            // --- ASYNC OPTIMIZATION SOLVER (Modified for Worker) ---
+            async function solveFullSearchInWorker(allFaculty, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, initialBestScore) {
+                const schedule = new Map();
+                const assignedLectureSlots = new Set();
+                const facultyTimeSlotMap = new Map();
+                let progressState = { facultyIndex: 0, combinations: 0, bestScore: initialBestScore };
+                const lectureSlotsByTime = new Map();
+                for (const lecture of allLectureSlots) {
+                    if (!lectureSlotsByTime.has(lecture.timeSlot)) lectureSlotsByTime.set(lecture.timeSlot, []);
+                    lectureSlotsByTime.get(lecture.timeSlot).push(lecture);
+                }
+
+                async function solveForFaculty(facultyIndex, currentUnhappy) {
+                    if (currentUnhappy >= progressState.bestScore) return;
+                    progressState.facultyIndex = facultyIndex;
+                    if (facultyIndex === allFaculty.length) {
+                        progressState.bestScore = currentUnhappy;
+                        self.postMessage({ type: 'solutionUpdate', schedule: Array.from(schedule.entries()), score: currentUnhappy });
+                        return;
+                    }
+                    const faculty = allFaculty[facultyIndex];
+                    if (progressState.combinations % 1000 === 0) { // Update main thread less often
+                        self.postMessage({ type: 'progressUpdate', facultyIndex: facultyIndex, facultyName: faculty, combinations: progressState.combinations });
+                        await yieldWorker();
+                    }
+                    const assignedTimes = facultyTimeSlotMap.get(faculty) || new Set();
+                    const preferredSlots = facultyPreferredSlots.get(faculty) || new Set();
+                    const possible = [];
+                    for (const l of allLectureSlots) {
+                        if (!assignedLectureSlots.has(l.id) && !assignedTimes.has(l.timeSlot)) {
+                            const isHappy = preferredSlots.has(l.timeSlot);
+                            possible.push({ lecture: l, isHappy: isHappy });
+                        }
+                    }
+                    possible.sort((a, b) => b.isHappy - a.isHappy);
+                    for (const { lecture, isHappy } of possible) {
+                        progressState.combinations++;
+                        const newUnhappy = currentUnhappy + (isHappy ? 0 : 1);
+                        schedule.set(faculty, { lecture: lecture, isHappy: isHappy });
+                        assignedLectureSlots.add(lecture.id);
+                        assignedTimes.add(lecture.timeSlot);
+                        facultyTimeSlotMap.set(faculty, assignedTimes);
+                        await solveForFaculty(facultyIndex + 1, newUnhappy);
+                        schedule.delete(faculty);
+                        assignedLectureSlots.delete(lecture.id);
+                        assignedTimes.delete(lecture.timeSlot);
+                    }
+                }
+                const shuffledFaculty = shuffleArray([...allFaculty]);
+                await solveForFaculty(0, 0);
+                return { finalCombinations: progressState.combinations, finalScore: progressState.bestScore };
+            }
+
+            // --- Worker Message Listener ---
+            self.onmessage = async (event) => {
+                console.log("Worker received data");
+                const { allFaculty, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, initialBestScore } = event.data;
+                try {
+                    const reconstructedTeacherAvailabilityMap = new Map(teacherAvailabilityMap);
+                    const reconstructedFacultyPreferredSlots = new Map(facultyPreferredSlots.map(([k, v]) => [k, new Set(v)]));
+                    const result = await solveFullSearchInWorker(allFaculty, allLectureSlots, reconstructedTeacherAvailabilityMap, reconstructedFacultyPreferredSlots, initialBestScore);
+                    self.postMessage({ type: 'complete', ...result });
+                } catch (error) {
+                    console.error("Error in worker:", error);
+                    self.postMessage({ type: 'error', message: error.message });
+                }
+            };
+            console.log("Worker code started");
+            // --- scheduler_worker.js content END ---
+        `;
+
+        // --- HELPER FUNCTIONS (shuffle, formatTime) ---
         function shuffleArray(array) {
             for (let i = array.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
@@ -192,433 +314,263 @@
             }
             return array;
         }
-        
+
         function formatTime(totalSeconds) {
-            if (totalSeconds >= 3600) {
-                const hours = Math.floor(totalSeconds / 3600);
-                const remainingSeconds = totalSeconds % 3600;
-                const minutes = Math.floor(remainingSeconds / 60);
-                const seconds = remainingSeconds % 60;
-                return `Time: ${hours}h ${minutes}m ${seconds.toFixed(1)}s`;
-            }
-            if (totalSeconds >= 60) {
-                const minutes = Math.floor(totalSeconds / 60);
-                const seconds = totalSeconds % 60;
-                return `Time: ${minutes}m ${seconds.toFixed(1)}s`;
-            }
+            if (totalSeconds >= 3600) { const h = Math.floor(totalSeconds / 3600); const r = totalSeconds % 3600; const m = Math.floor(r / 60); const s = r % 60; return `Time: ${h}h ${m}m ${s.toFixed(1)}s`; }
+            if (totalSeconds >= 60) { const m = Math.floor(totalSeconds / 60); const s = totalSeconds % 60; return `Time: ${m}m ${s.toFixed(1)}s`; }
             return `Time: ${totalSeconds.toFixed(1)}s`;
-        }
-        
-        function yieldToBrowser() {
-            return new Promise(resolve => setTimeout(resolve, 0));
         }
 
         // --- PROCEDURAL DATA GENERATION ---
         function generateTestData(numFaculty, numTimeSlots) {
-            // ... (This function is unchanged) ...
-            const allFaculty = [];
-            let allTimeSlots = [];
-            const allLectureSlots = [];
-            const teacherAvailabilityMap = new Map();
-            const lastNames = [
-                'Adams', 'Baker', 'Chen', 'Davis', 'Elara', 'Faruqi', 'Gupta', 'Hernandez', 'Imani', 'Jones',
-                'Kim', 'Lee', 'Miller', 'Ngo', 'Okafor', 'Patel', 'Quinn', 'Rossi', 'Smith', 'Tanaka',
-                'Umar', 'Volkov', 'Walker', 'Xiong', 'Yilmaz', 'Zhang', 'Adebayo', 'Bose', 'Chavez', 'Dubois',
-                'Erikson', 'Fisher', 'Gomez', 'Huxley', 'Ivanov', 'Jang', 'Kaur', 'Lopez', 'Mbeki', 'Nguyen',
-                'Perez', 'Ramos', 'Silva', 'Torres', 'Vargas', 'Wang', 'Yates', 'Zimmerman', 'Ali', 'Bedi',
-                'Cabrera', 'Deng', 'Escobar', 'Flores', 'Gagnon'
-            ];
-            for (let i = 0; i < numFaculty; i++) {
-                const facultyName = `F${i + 1}_${lastNames[i % lastNames.length]}`;
-                allFaculty.push(facultyName);
-                teacherAvailabilityMap.set(facultyName, []);
-            }
-            const slotNamePool = [
-                'MWF 9-10', 'MWF 10-11', 'MWF 11-12', 'MWF 1-2', 'MWF 2-3',
-                'TTh 9-10:30', 'TTh 10:30-12', 'TTh 1-2:30', 'TTh 2:30-4',
-                'M 1-2', 'M 2-3', 'M 3-4', 'T 1-2', 'T 2-3', 'W 1-2', 'W 2-3', 'W 3-4',
-                'Th 1-2', 'Th 2-3', 'F 1-2', 'F 2-3', 'F 3-4'
-            ];
+            // ... (Unchanged) ...
+            const allFaculty = []; let allTimeSlots = []; const allLectureSlots = []; const teacherAvailabilityMap = new Map();
+            const lastNames = ['Adams', 'Baker', 'Chen', 'Davis', 'Elara', 'Faruqi', 'Gupta', 'Hernandez', 'Imani', 'Jones', 'Kim', 'Lee', 'Miller', 'Ngo', 'Okafor', 'Patel', 'Quinn', 'Rossi', 'Smith', 'Tanaka', 'Umar', 'Volkov', 'Walker', 'Xiong', 'Yilmaz', 'Zhang', 'Adebayo', 'Bose', 'Chavez', 'Dubois', 'Erikson', 'Fisher', 'Gomez', 'Huxley', 'Ivanov', 'Jang', 'Kaur', 'Lopez', 'Mbeki', 'Nguyen', 'Perez', 'Ramos', 'Silva', 'Torres', 'Vargas', 'Wang', 'Yates', 'Zimmerman', 'Ali', 'Bedi', 'Cabrera', 'Deng', 'Escobar', 'Flores', 'Gagnon'];
+            for (let i = 0; i < numFaculty; i++) { const fName = `F${i + 1}_${lastNames[i % lastNames.length]}`; allFaculty.push(fName); teacherAvailabilityMap.set(fName, []); }
+            const slotNamePool = ['MWF 9-10', 'MWF 10-11', 'MWF 11-12', 'MWF 1-2', 'MWF 2-3', 'TTh 9-10:30', 'TTh 10:30-12', 'TTh 1-2:30', 'TTh 2:30-4', 'M 1-2', 'M 2-3', 'M 3-4', 'T 1-2', 'T 2-3', 'W 1-2', 'W 2-3', 'W 3-4', 'Th 1-2', 'Th 2-3', 'F 1-2', 'F 2-3', 'F 3-4'];
             allTimeSlots = shuffleArray(slotNamePool).slice(0, numTimeSlots);
-            for (const slot of allTimeSlots) {
-                const numRooms = Math.floor(Math.random() * (6 - 1 + 1)) + 1; // 1-6 rooms
-                for (let i = 1; i <= numRooms; i++) {
-                    allLectureSlots.push({ id: `${slot} (Room ${i})`, timeSlot: slot });
-                }
-            }
-            const minAvail = 2; const maxAvail = 5;
-            for (const faculty of allFaculty) {
-                const shuffledTimeSlots = shuffleArray([...allTimeSlots]);
-                const numAvailable = Math.floor(Math.random() * (maxAvail - minAvail + 1)) + minAvail;
-                const availableSlots = shuffledTimeSlots.slice(0, numAvailable);
-                teacherAvailabilityMap.set(faculty, availableSlots);
-            }
-            return { allFaculty, allTimeSlots, allLectureSlots, teacherAvailabilityMap };
+            for (const slot of allTimeSlots) { const nR = Math.floor(Math.random() * 6) + 1; for (let i = 1; i <= nR; i++) { allLectureSlots.push({ id: `${slot} (Room ${i})`, timeSlot: slot }); } }
+            const minA = 2, maxA = 5;
+            for (const fac of allFaculty) { const shufSlots = shuffleArray([...allTimeSlots]); const nAvail = Math.floor(Math.random() * (maxA - minA + 1)) + minA; const avSlots = shufSlots.slice(0, nAvail); teacherAvailabilityMap.set(fac, avSlots); }
+            const facultyPreferredSlots = new Map(); for(const [fac, slots] of teacherAvailabilityMap.entries()) { facultyPreferredSlots.set(fac, new Set(slots)); }
+            const transferableFacultyPreferredSlots = Array.from(facultyPreferredSlots.entries()).map(([k, v]) => [k, Array.from(v)]);
+            return { allFaculty, allTimeSlots, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, transferableFacultyPreferredSlots };
         }
-        
-        // --- Helper: Update Progress Bar ---
+
+        // --- Helper: Update Progress Bar (UI Thread) ---
         function updateProgress(facultyIndex, totalFaculty, facultyName, progressBar, progressLabel, combinations, comboLabel) {
-            const percentage = (facultyIndex / totalFaculty) * 100;
-            progressBar.style.width = percentage + '%';
-            
-            if (facultyIndex === totalFaculty) {
-                progressLabel.textContent = "Search complete!";
-            } else if (facultyName) {
-                progressLabel.textContent = `Optimizing: ${facultyName} (${facultyIndex}/${totalFaculty})...`;
-            } else {
-                progressLabel.textContent = "Starting optimization search...";
-            }
-            
+             const percentage = (facultyIndex / totalFaculty) * 100; progressBar.style.width = percentage + '%';
+            if (facultyIndex === totalFaculty) { progressLabel.textContent = "Search complete!"; }
+            else if (facultyName) { progressLabel.textContent = `Optimizing: ${facultyName} (${facultyIndex}/${totalFaculty})...`; }
+            else { progressLabel.textContent = "Starting optimization search..."; }
             comboLabel.textContent = `Combinations: ${combinations.toLocaleString()}`;
         }
-        
-        // --- PHASE 1: FAST HEURISTIC SOLVER ---
-        function runHeuristicSolver(allFaculty, allLectureSlots, teacherAvailabilityMap) {
-            const schedule = new Map(); // Faculty -> { lecture, isHappy }
-            const assignedLectureSlots = new Set();
-            const facultyTimeSlotMap = new Map();
-            let numUnhappy = 0;
 
-            const allAvailableLectureSlots = new Set(allLectureSlots);
-            
-            const lectureSlotsByTime = new Map();
-            for (const lecture of allLectureSlots) {
-                if (!lectureSlotsByTime.has(lecture.timeSlot)) {
-                    lectureSlotsByTime.set(lecture.timeSlot, []);
-                }
-                lectureSlotsByTime.get(lecture.timeSlot).push(lecture);
-            }
-
-            // 1. Sort faculty by "Minimum Remaining Values" (MRV) heuristic
-            const sortedFaculty = [...allFaculty].sort((a, b) => {
-                const aSlots = teacherAvailabilityMap.get(a) || [];
-                const bSlots = teacherAvailabilityMap.get(b) || [];
-                return aSlots.length - bSlots.length;
-            });
-
-            // 2. One-pass greedy assignment
+        // --- PHASE 1: HEURISTIC SOLVER (MRV + First Choice - deterministic) ---
+        function runHeuristicSolver(allFaculty, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots) {
+             const schedule = new Map(); const assignedLectureSlots = new Set(); const facultyTimeSlotMap = new Map(); let numUnhappy = 0;
+            const lectureSlotsByTime = new Map(); for (const l of allLectureSlots) { if (!lectureSlotsByTime.has(l.timeSlot)) lectureSlotsByTime.set(l.timeSlot, []); lectureSlotsByTime.get(l.timeSlot).push(l); }
+            const sortedFaculty = [...allFaculty].sort((a, b) => (teacherAvailabilityMap.get(a)?.length || 0) - (teacherAvailabilityMap.get(b)?.length || 0));
             for (const faculty of sortedFaculty) {
-                const assignedTimesForThisFaculty = facultyTimeSlotMap.get(faculty) || new Set();
-                let placed = false;
-
-                // --- Try to place in a "happy" slot first ---
-                const preferredTimeSlots = teacherAvailabilityMap.get(faculty) || [];
-                for (const timeSlot of preferredTimeSlots) {
-                    if (!assignedTimesForThisFaculty.has(timeSlot)) {
-                        const lecturesInSlot = lectureSlotsByTime.get(timeSlot) || [];
-                        for (const lecture of lecturesInSlot) {
-                            if (!assignedLectureSlots.has(lecture.id)) {
-                                schedule.set(faculty, { lecture, isHappy: true });
-                                assignedLectureSlots.add(lecture.id);
-                                assignedTimesForThisFaculty.add(lecture.timeSlot);
-                                facultyTimeSlotMap.set(faculty, assignedTimesForThisFaculty);
-                                placed = true;
-                                break;
-                            }
-                        }
-                    }
-                    if (placed) break;
-                }
-
-                // --- If not placed, place in *any* "unhappy" slot ---
-                if (!placed) {
-                    for (const lecture of allLectureSlots) {
-                        if (!assignedLectureSlots.has(lecture.id) && !assignedTimesForThisFaculty.has(lecture.timeSlot)) {
-                            schedule.set(faculty, { lecture, isHappy: false });
-                            assignedLectureSlots.add(lecture.id);
-                            assignedTimesForThisFaculty.add(lecture.timeSlot);
-                            facultyTimeSlotMap.set(faculty, assignedTimesForThisFaculty);
-                            numUnhappy++;
-                            placed = true;
-                            break;
-                        }
-                    }
-                }
-                
-                if (!placed) {
-                    console.error("Heuristic failed to place " + faculty);
-                }
-            }
-            
-            return { schedule, numUnhappy };
+                const assignedTimes = facultyTimeSlotMap.get(faculty) || new Set(); let placed = false; const prefSlots = teacherAvailabilityMap.get(faculty) || []; const prefSet = facultyPreferredSlots.get(faculty) || new Set();
+                for (const timeSlot of prefSlots) { if (!assignedTimes.has(timeSlot)) { const lecturesInSlot = lectureSlotsByTime.get(timeSlot) || []; for (const l of lecturesInSlot) { if (!assignedLectureSlots.has(l.id)) { schedule.set(faculty, { lecture: l, isHappy: true }); assignedLectureSlots.add(l.id); assignedTimes.add(l.timeSlot); facultyTimeSlotMap.set(faculty, assignedTimes); placed = true; break; } } } if (placed) break; }
+                if (!placed) { for (const l of allLectureSlots) { if (!assignedLectureSlots.has(l.id) && !assignedTimes.has(l.timeSlot)) { const isHappy = prefSet.has(l.timeSlot); schedule.set(faculty, { lecture: l, isHappy: isHappy }); assignedLectureSlots.add(l.id); assignedTimes.add(l.timeSlot); facultyTimeSlotMap.set(faculty, assignedTimes); if (!isHappy) numUnhappy++; placed = true; break; } } }
+                if (!placed) { console.error("Heuristic failed to place " + faculty); }
+            } return { schedule, numUnhappy };
         }
 
 
-        // --- PHASE 2: ASYNC OPTIMIZATION SOLVER ---
-        async function solveFullSearch(allFaculty, allLectureSlots, teacherAvailabilityMap, progressBar, progressLabel, comboLabel, progressState, updateCallback, initialBestScore) {
-            
-            const schedule = new Map();
-            const assignedLectureSlots = new Set();
-            const facultyTimeSlotMap = new Map();
-            
-            progressState.bestScore = initialBestScore;
-            
-            const lectureSlotsByTime = new Map();
-            for (const lecture of allLectureSlots) {
-                if (!lectureSlotsByTime.has(lecture.timeSlot)) {
-                    lectureSlotsByTime.set(lecture.timeSlot, []);
-                }
-                lectureSlotsByTime.get(lecture.timeSlot).push(lecture);
-            }
-            const facultyPreferredSlots = new Map();
-            for(const [faculty, slots] of teacherAvailabilityMap.entries()) {
-                facultyPreferredSlots.set(faculty, new Set(slots));
-            }
-
-            // --- Recursive helper is now ASYNC ---
-            async function solveForFaculty(facultyIndex, currentUnhappy) {
-                
-                // --- Pruning (Branch and Bound) ---
-                if (currentUnhappy >= progressState.bestScore) {
-                    return; // This path is already worse or equal, so stop.
-                }
-
-                progressState.facultyIndex = facultyIndex;
-                
-                // --- Base Case ---
-                if (facultyIndex === allFaculty.length) {
-                    // We found a new, better solution!
-                    progressState.bestScore = currentUnhappy;
-                    updateCallback(new Map(schedule), currentUnhappy); // Send a *copy*
-                    return;
-                }
-                
-                const faculty = allFaculty[facultyIndex];
-                
-                if(progressState.combinations % 500 === 0) { // Only update UI every 500 combos
-                    updateProgress(facultyIndex, allFaculty.length, faculty, progressBar, progressLabel, progressState.combinations, comboLabel);
-                    await yieldToBrowser();
-                }
-
-                // --- Resume logic ---
-                const assignedTimesForThisFaculty = facultyTimeSlotMap.get(faculty) || new Set();
-                const preferredSlots = facultyPreferredSlots.get(faculty) || new Set();
-
-                const possibleLectures = [];
-                for (const lecture of allLectureSlots) {
-                    if (!assignedLectureSlots.has(lecture.id) && !assignedTimesForThisFaculty.has(lecture.timeSlot)) {
-                        const isHappy = preferredSlots.has(lecture.timeSlot);
-                        possibleLectures.push({ lecture, isHappy });
-                    }
-                }
-                
-                possibleLectures.sort((a, b) => b.isHappy - a.isHappy); // true (1) before false (0)
-                
-                for (const { lecture, isHappy } of possibleLectures) {
-                    progressState.combinations++;
-                    
-                    const newUnhappy = currentUnhappy + (isHappy ? 0 : 1);
-                    
-                    schedule.set(faculty, { lecture, isHappy });
-                    assignedLectureSlots.add(lecture.id);
-                    assignedTimesForThisFaculty.add(lecture.timeSlot);
-                    facultyTimeSlotMap.set(faculty, assignedTimesForThisFaculty);
-                    
-                    await solveForFaculty(facultyIndex + 1, newUnhappy);
-
-                    schedule.delete(faculty);
-                    assignedLectureSlots.delete(lecture.id);
-                    assignedTimesForThisFaculty.delete(lecture.timeSlot);
-                }
-            }
-
-            const shuffledFaculty = shuffleArray([...allFaculty]);
-            await solveForFaculty(0, 0); // Start the search
-
-            return {
-                message: `Optimization search complete. Best score: ${progressState.bestScore} conflicts.`,
-            };
-        }
-        
-        
         // --- Function to render the Faculty Availability page ---
         function renderAvailabilityPage(allFaculty, teacherAvailabilityMap, container) {
-            let htmlContent = "";
-            const sortedFaculty = [...allFaculty].sort();
-            
-            for (const faculty of sortedFaculty) {
-                const availableSlots = teacherAvailabilityMap.get(faculty) || [];
-                const sortedSlots = [...availableSlots].sort();
-                
-                htmlContent += `
-                    <div class="schedule-card">
-                        <div class="card-header">${faculty}</div>
-                        <div class="card-body">
-                            ${sortedSlots.join('<br>')}
-                        </div>
-                    </div>
-                `;
-            }
-            container.innerHTML = htmlContent;
+             let htmlContent = ""; const sortedFaculty = [...allFaculty].sort();
+            for (const faculty of sortedFaculty) { const availableSlots = teacherAvailabilityMap.get(faculty) || []; const sortedSlots = [...availableSlots].sort(); htmlContent += `<div class="schedule-card"><div class="card-header">${faculty}</div><div class="card-body">${sortedSlots.join('<br>')}</div></div>`; } container.innerHTML = htmlContent;
         }
 
-        // --- Function to render the Schedule (so it can be re-called) ---
-        function renderSchedulerPage(schedule, allTimeSlots, allLectureSlots, containerEl) {
-            // 1. Invert the schedule map for easy lookup
-            const assignedLecturesMap = new Map();
-            for (const [faculty, assignment] of schedule.entries()) {
-                assignedLecturesMap.set(assignment.lecture.id, { faculty, isHappy: assignment.isHappy });
-            }
-
-            // 2. Group all lecture slots by their TimeSlot
-            const timeSlotGrouping = new Map();
-            for (const timeSlot of allTimeSlots) {
-                timeSlotGrouping.set(timeSlot, []); // Initialize
-            }
-            
-            for (const lecture of allLectureSlots) {
-                const roomName = lecture.id.substring(lecture.timeSlot.length).trim();
-                const assignment = assignedLecturesMap.get(lecture.id);
-                
-                let assignmentString;
-                if (assignment) {
-                    // Apply 'unhappy' class if needed
-                    const unhappyClass = assignment.isHappy ? '' : 'class="unhappy"';
-                    assignmentString = `${roomName}: <strong ${unhappyClass}>${assignment.faculty}</strong>`;
-                } else {
-                    assignmentString = `${roomName}: <em>(Unassigned)</em>`;
-                }
-                timeSlotGrouping.get(lecture.timeSlot).push(assignmentString);
-            }
-
-            // 3. Build the final HTML
-            let htmlContent = "";
-            const sortedTimeSlots = [...allTimeSlots].sort();
-            
-            for (const timeSlot of sortedTimeSlots) {
-                const assignments = timeSlotGrouping.get(timeSlot) || [];
-                
-                htmlContent += `
-                    <div class="schedule-card">
-                        <div class="card-header">${timeSlot}</div>
-                        <div class="card-body">
-                            ${assignments.join('<br>')}
-                        </div>
-                    </div>
-                `;
-            }
-            containerEl.innerHTML = htmlContent;
+        // --- Function to render the SINGLE Schedule ---
+        function renderSingleSchedule(schedule, allTimeSlots, allLectureSlots, containerEl) {
+            const assignedMap = new Map(); for (const [f, a] of schedule.entries()) { assignedMap.set(a.lecture.id, { faculty: f, isHappy: a.isHappy }); } const tsGroup = new Map(); for (const ts of allTimeSlots) { tsGroup.set(ts, []); }
+            for (const l of allLectureSlots) { const rName = l.id.substring(l.timeSlot.length).trim(); const assign = assignedMap.get(l.id); let assignStr; if (assign) { const uhCls = assign.isHappy ? '' : 'class="unhappy"'; assignStr = `${rName}: <strong ${uhCls}>${assign.faculty}</strong>`; } else { assignStr = `${rName}: <em>(Unassigned)</em>`; } tsGroup.get(l.timeSlot).push(assignStr); }
+            let htmlContent = ""; const sortedTS = [...allTimeSlots].sort(); for (const ts of sortedTS) { const assigns = tsGroup.get(ts) || []; htmlContent += `<div class="schedule-card"><div class="card-header">${ts}</div><div class="card-body">${assigns.join('<br>')}</div></div>`; }
+            containerEl.innerHTML = htmlContent; // Render directly
         }
 
 
         // --- This code runs after the page loads ---
-        document.addEventListener("DOMContentLoaded", async function() {
-            
+        document.addEventListener("DOMContentLoaded", function() {
+
             // --- Get ALL DOM elements ONCE ---
             const navScheduler = document.getElementById("nav-scheduler");
             const navAvailability = document.getElementById("nav-availability");
             const rerunButton = document.getElementById("rerun-button");
-            
+
             const pageScheduler = document.getElementById("page-scheduler");
             const pageAvailability = document.getElementById("page-availability");
-            
+
             const statusEl = document.getElementById("status-message");
             const scheduleContainer = document.getElementById("schedule-container");
             const availabilityContainer = document.getElementById("availability-container");
-            
+
             const progressContainer = document.getElementById("progress-container");
             const progressBar = document.getElementById("progress-bar");
             const progressLabel = document.getElementById("progress-label");
-            
+
             const timerLabel = document.getElementById("timer-label");
             const comboLabel = document.getElementById("combo-label");
-            
+
             let timerInterval = null;
-            let progressState = {
-                facultyIndex: 0,
-                combinations: 0,
-                bestScore: Infinity // The score to beat
-            };
+            let currentBestScore = Infinity;
+            let heuristicScore = Infinity;
             const NUM_FACULTY = 55;
             const NUM_SLOTS = 20;
 
-            // --- Main execution function ---
-            async function runScheduler() {
-                // 1. Clear old results and show progress bar
+            let currentWorker = null;
+            let optimizationStartTime = 0;
+            let workerObjectURL = null; // Store the Blob URL
+
+             // --- Create Worker Blob URL ONCE ---
+            try {
+                const blob = new Blob([workerCode], { type: 'application/javascript' });
+                workerObjectURL = URL.createObjectURL(blob);
+                console.log("Worker Blob URL created.");
+            } catch(e) {
+                 console.error("Error creating Blob URL:", e);
+                 statusEl.textContent = "Error: Cannot create worker code. Browser might be too old or configured incorrectly.";
+                 statusEl.className = "failure";
+                 // Disable button if worker creation fails fundamentally
+                 rerunButton.disabled = true;
+                 return; // Stop initialization
+            }
+
+
+            // --- Main execution function (Starts Worker) ---
+            function runScheduler() {
+                // Terminate existing worker
+                if (currentWorker) {
+                    currentWorker.terminate();
+                    console.log("Terminated previous worker.");
+                    currentWorker = null;
+                }
+                 if (timerInterval) {
+                     clearInterval(timerInterval);
+                     timerInterval = null;
+                 }
+
+
+                // 1. Setup UI
                 rerunButton.disabled = true;
                 rerunButton.textContent = "Computing...";
-                statusEl.textContent = "Generating new data...";
+                statusEl.textContent = "Generating new data & finding heuristic solution...";
                 statusEl.className = "";
                 scheduleContainer.innerHTML = "";
                 availabilityContainer.innerHTML = "";
-                
-                // --- Reset UI ---
+
+                // Reset UI
                 progressContainer.style.display = "block";
                 timerLabel.textContent = "Time: 0.0s";
                 comboLabel.textContent = "Combinations: 0";
-                
-                progressState.facultyIndex = 0;
-                progressState.combinations = 0;
-                progressState.bestScore = Infinity; // Reset best score
-                
+                currentBestScore = Infinity;
+
                 updateProgress(0, NUM_FACULTY, null, progressBar, progressLabel, 0, comboLabel);
 
                 // 2. Generate Data
-                const { allFaculty, allTimeSlots, allLectureSlots, teacherAvailabilityMap } = generateTestData(NUM_FACULTY, NUM_SLOTS);
+                const { allFaculty, allTimeSlots, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, transferableFacultyPreferredSlots } = generateTestData(NUM_FACULTY, NUM_SLOTS);
 
                 // 3. Render Availability Page
                 renderAvailabilityPage(allFaculty, teacherAvailabilityMap, availabilityContainer);
-                
-                // 4. --- PHASE 1: Run Fast Heuristic (SYNC) ---
+
+                // 4. --- PHASE 1: Run Heuristic ---
                 statusEl.textContent = "Finding initial heuristic solution...";
-                const heuristicResult = runHeuristicSolver(allFaculty, allLectureSlots, teacherAvailabilityMap);
-                progressState.bestScore = heuristicResult.numUnhappy; // Set the score to beat
-                
-                // Render the first solution
-                renderSchedulerPage(heuristicResult.schedule, allTimeSlots, allLectureSlots, scheduleContainer);
-                statusEl.textContent = `Heuristic solution found with ${progressState.bestScore} conflicts. Now searching for a better one...`;
-                statusEl.className = "success"; // Mark as success for now
-                
-                
-                // 5. --- Setup Timer (for Phase 2) ---
-                const startTime = performance.now();
-                if (timerInterval) clearInterval(timerInterval);
-                
+                const heuristicResult = runHeuristicSolver(allFaculty, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots);
+                heuristicScore = heuristicResult.numUnhappy;
+                currentBestScore = heuristicScore;
+
+                // Render first solution
+                renderSingleSchedule(heuristicResult.schedule, allTimeSlots, allLectureSlots, scheduleContainer);
+                statusEl.textContent = `Heuristic solution found with ${currentBestScore} conflicts. Now searching for a better one in background...`;
+                statusEl.className = "success";
+
+
+                // 5. --- Setup Timer ---
+                optimizationStartTime = performance.now();
                 timerInterval = setInterval(() => {
-                    const elapsedSeconds = ((performance.now() - startTime) / 1000);
+                    const elapsedSeconds = ((performance.now() - optimizationStartTime) / 1000);
                     timerLabel.textContent = formatTime(elapsedSeconds);
                 }, 100);
 
-                // 6. --- PHASE 2: Run Full Optimization (ASYNC) ---
-                
-                // This callback will be triggered by the solver
-                const updateCallback = (newSchedule, newScore) => {
-                    renderSchedulerPage(newSchedule, allTimeSlots, allLectureSlots, scheduleContainer);
-                    
-                    // *** EMOJI REMOVED HERE ***
-                    statusEl.textContent = `New best solution found! Conflicts: ${newScore}`;
-                    statusEl.className = "improved";
-                };
-                
-                const result = await solveFullSearch(
-                    allFaculty, allLectureSlots, teacherAvailabilityMap,
-                    progressBar, progressLabel, comboLabel,
-                    progressState, updateCallback, progressState.bestScore
-                );
-                
-                // 7. --- Cleanup ---
-                clearInterval(timerInterval);
-                timerInterval = null;
-                const endTime = performance.now();
-                const durationInSeconds = (endTime - startTime) / 1000;
-
-                // 8. Hide progress bar & Set Final Message
-                progressContainer.style.display = "none";
-                const finalCombinations = progressState.combinations.toLocaleString();
-                
-                if (progressState.bestScore < heuristicResult.numUnhappy) {
-                    statusEl.textContent = `Search complete! Final best score: ${progressState.bestScore} conflicts. (Searched ${finalCombinations} combinations in ${durationInSeconds.toFixed(3)}s)`;
-                    statusEl.className = "success";
-                } else {
-                    statusEl.textContent = `Search complete. Heuristic was optimal. Score: ${progressState.bestScore} conflicts. (Searched ${finalCombinations} combinations in ${durationInSeconds.toFixed(3)}s)`;
-                    statusEl.className = "success";
+                // 6. --- PHASE 2: Start Worker ---
+                console.log("Starting worker from Blob URL...");
+                try {
+                    // *** Use the Blob URL ***
+                    currentWorker = new Worker(workerObjectURL);
+                } catch (e) {
+                     console.error("Error creating worker:", e);
+                     statusEl.textContent = "Error: Could not create background worker. Browser might block Blob URL workers in this context.";
+                     statusEl.className = "failure";
+                     progressContainer.style.display = "none";
+                      if (timerInterval) clearInterval(timerInterval);
+                      timerInterval = null;
+                     rerunButton.disabled = false;
+                     rerunButton.textContent = "Generate New Schedule";
+                     return;
                 }
 
-                // 9. Re-enable rerun button
-                rerunButton.disabled = false;
-                rerunButton.textContent = "Generate New Schedule";
+                // Handle messages FROM the worker
+                currentWorker.onmessage = (event) => {
+                    const data = event.data;
+                    switch (data.type) {
+                        case 'progressUpdate':
+                            updateProgress(data.facultyIndex, NUM_FACULTY, data.facultyName, progressBar, progressLabel, data.combinations, comboLabel);
+                            break;
+                        case 'solutionUpdate':
+                            if (data.score < currentBestScore) {
+                                currentBestScore = data.score;
+                                console.log("Worker found better solution:", currentBestScore);
+                                const newScheduleMap = new Map(data.schedule);
+                                renderSingleSchedule(newScheduleMap, allTimeSlots, allLectureSlots, scheduleContainer);
+                                statusEl.textContent = `New best solution found! Conflicts: ${currentBestScore}. Still searching...`;
+                                statusEl.className = "improved";
+                            }
+                            break;
+                        case 'complete':
+                            console.log("Worker finished.");
+                            clearInterval(timerInterval);
+                            timerInterval = null;
+                            const durationInSeconds = (performance.now() - optimizationStartTime) / 1000;
+                            progressContainer.style.display = "none";
+                            const finalCombinations = data.finalCombinations.toLocaleString();
+                            currentBestScore = data.finalScore;
+
+                            if (currentBestScore < heuristicScore) {
+                                statusEl.textContent = `Search complete! Final best score: ${currentBestScore} conflicts. (Searched ${finalCombinations} combinations in ${durationInSeconds.toFixed(3)}s)`;
+                                statusEl.className = "success";
+                            } else {
+                                statusEl.textContent = `Search complete. Heuristic was optimal. Score: ${currentBestScore} conflicts. (Searched ${finalCombinations} combinations in ${durationInSeconds.toFixed(3)}s)`;
+                                statusEl.className = "success";
+                            }
+                            rerunButton.disabled = false;
+                            rerunButton.textContent = "Generate New Schedule";
+                            currentWorker = null; // Clear worker reference
+                            break;
+                         case 'error':
+                             console.error("Worker error:", data.message);
+                             clearInterval(timerInterval);
+                             timerInterval = null;
+                             progressContainer.style.display = "none";
+                             statusEl.textContent = `Error during optimization: ${data.message}`;
+                             statusEl.className = "failure";
+                             rerunButton.disabled = false;
+                             rerunButton.textContent = "Generate New Schedule";
+                             currentWorker = null;
+                             break;
+                    }
+                };
+
+                 // Handle potential errors starting the worker
+                currentWorker.onerror = (error) => {
+                     console.error("Worker initialization error:", error);
+                     clearInterval(timerInterval);
+                     timerInterval = null;
+                     progressContainer.style.display = "none";
+                     statusEl.textContent = `Failed to start background optimizer: ${error.message}`;
+                     statusEl.className = "failure";
+                     rerunButton.disabled = false;
+                     rerunButton.textContent = "Generate New Schedule";
+                     currentWorker = null;
+                };
+
+                // Send data TO the worker
+                 console.log("Sending data to worker...");
+                 currentWorker.postMessage({
+                     allFaculty,
+                     allLectureSlots,
+                     teacherAvailabilityMap: Array.from(teacherAvailabilityMap.entries()),
+                     facultyPreferredSlots: transferableFacultyPreferredSlots,
+                     initialBestScore: currentBestScore
+                 });
+
             }
-            
+
+
             // --- SET UP NAVIGATION CLICK HANDLERS ---
             navScheduler.addEventListener("click", () => {
                 pageScheduler.style.display = "block";
@@ -626,20 +578,31 @@
                 navScheduler.classList.add("active");
                 navAvailability.classList.remove("active");
             });
-            
+
             navAvailability.addEventListener("click", () => {
                 pageScheduler.style.display = "none";
                 pageAvailability.style.display = "block";
                 navScheduler.classList.remove("active");
                 navAvailability.classList.add("active");
             });
-            
+
             // --- SET UP RERUN BUTTON CLICK HANDLER ---
-            rerunButton.addEventListener("click", runScheduler);
-            
+            rerunButton.addEventListener("click", runScheduler); // Single button triggers combined run
+
             // --- INITIAL RUN ON PAGE LOAD ---
-            await runScheduler();
-            
+            runScheduler(); // No await needed, starts worker in background
+
+             // --- Clean up Blob URL when page closes (optional but good practice) ---
+             window.addEventListener('beforeunload', () => {
+                 if (workerObjectURL) {
+                     URL.revokeObjectURL(workerObjectURL);
+                     console.log("Worker Blob URL revoked.");
+                 }
+                  if (currentWorker) {
+                    currentWorker.terminate(); // Stop worker on page close
+                 }
+             });
+
         });
 
     </script>
