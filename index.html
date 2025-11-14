@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Faculty Scheduler</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
     <style>
         body {
@@ -23,7 +25,14 @@
              color: #004a9c;
              border-bottom: 1px solid #ddd;
              padding-bottom: 8px;
-             margin-top: 30px; /* Add space above h2 */
+             margin-top: 30px;
+        }
+        h3 {
+            color: #333;
+            margin-top: 25px;
+            margin-bottom: 10px;
+            border-bottom: 1px dashed #ccc;
+            padding-bottom: 5px;
         }
 
         /* --- Navigation Styles --- */
@@ -32,10 +41,10 @@
             display: flex;
             flex-wrap: wrap;
             gap: 10px;
-            align-items: center; /* Vertically align items */
+            align-items: center;
         }
         nav button {
-            font-size: 1.0em; /* Slightly smaller */
+            font-size: 1.0em;
             padding: 8px 12px;
             border: none;
             background-color: #ddd;
@@ -52,59 +61,67 @@
             color: white;
             font-weight: bold;
         }
-        /* Rerun button specific style */
-        #rerun-button {
+        .action-buttons {
+             margin-left: auto;
+             display: flex;
+             gap: 10px;
+        }
+        .action-buttons button {
             background-color: #1a73e8;
             color: white;
-            margin-left: auto; /* Pushes action buttons to the right */
-            font-size: 1.1em; /* Make rerun slightly larger */
-            padding: 10px 15px;
         }
-        #rerun-button:hover {
+        .action-buttons button:hover {
             background-color: #185abc;
         }
-        #rerun-button:disabled {
+        .action-buttons button:disabled {
             background-color: #aaa;
             color: #eee;
             cursor: not-allowed;
         }
         /* --- End Nav Styles --- */
+        
+        /* --- NEW: File Upload Area --- */
+        #upload-container {
+            padding: 20px;
+            background-color: #fff;
+            border: 2px dashed #004a9c;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        #upload-container label {
+            font-weight: bold;
+            font-size: 1.1em;
+            color: #004a9c;
+            margin-right: 10px;
+        }
+        #file-uploader {
+            border: 1px solid #ccc;
+            padding: 5px;
+            border-radius: 4px;
+        }
+        #parse-status {
+            margin-top: 10px;
+            font-style: italic;
+            font-size: 0.9em;
+        }
+        /* --- End File Upload Area --- */
 
         #status-message {
-            font-size: 1.1em; /* Slightly smaller */
+            font-size: 1.1em;
             font-weight: bold;
             margin-bottom: 10px;
             padding: 12px;
             border-radius: 5px;
             transition: background-color 0.3s, color 0.3s;
             border: 1px solid transparent;
+            display: none; /* Hide until needed */
         }
-        #status-message.success {
-            color: #155724;
-            background-color: #d4edda;
-            border-color: #c3e6cb;
-        }
-        #status-message.failure {
-            color: #721c24;
-            background-color: #f8d7da;
-            border-color: #f5c6cb;
-        }
-        #status-message.improved {
-            color: #004085;
-            background-color: #cce5ff;
-            border-color: #b8daff;
-        }
-         #status-message.info { /* For multi-heuristic status */
-             color: #0c5460;
-             background-color: #d1ecf1;
-             border-color: #bee5eb;
-        }
-         #status-message.aborted { /* For aborted status */
-             color: #856404;
-             background-color: #fff3cd;
-             border-color: #ffeeba;
-         }
-
+        #status-message.success { display: block; color: #155724; background-color: #d4edda; border-color: #c3e6cb; }
+        #status-message.failure { display: block; color: #721c24; background-color: #f8d7da; border-color: #f5c6cb; }
+        #status-message.improved { display: block; color: #004085; background-color: #cce5ff; border-color: #b8daff; }
+        #status-message.info { display: block; color: #0c5460; background-color: #d1ecf1; border-color: #bee5eb; }
+        #status-message.aborted { display: block; color: #856404; background-color: #fff3cd; border-color: #ffeeba; }
 
         /* --- Progress Bar Styles --- */
         #progress-container {
@@ -120,82 +137,40 @@
             font-family: monospace;
             color: #333;
         }
-
-        #progress-bar-outline {
-            width: 100%;
-            height: 20px;
-            background-color: #eee;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            overflow: hidden;
-        }
-        #progress-bar {
-            width: 0%;
-            height: 100%;
-            background-color: #004a9c;
-            transition: width 0.1s linear;
-        }
-        #progress-label {
-            text-align: left; /* Anchored to the left */
-            font-style: italic;
-            margin-top: 5px;
-            color: #555;
-        }
+        #progress-bar-outline { width: 100%; height: 20px; background-color: #eee; border: 1px solid #ccc; border-radius: 5px; overflow: hidden; }
+        #progress-bar { width: 0%; height: 100%; background-color: #004a9c; transition: width 0.1s linear; }
+        #progress-label { text-align: left; font-style: italic; margin-top: 5px; color: #555; }
         /* --- End Progress Bar Styles --- */
 
-        /* Container for cards */
-        .card-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 15px;
-            margin-bottom: 20px; /* Add space below card sets */
-        }
-        .schedule-card {
-            background-color: #ffffff;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            overflow: hidden;
-        }
-        .card-header {
-            font-weight: bold;
-            background-color: #f9f9f9;
-            padding: 12px 15px;
-            border-bottom: 1px solid #eee;
-            color: #004a9c;
-        }
-        .card-body {
-            padding: 15px;
-            font-size: 1.0em;
-            color: #444;
-            line-height: 1.7;
-        }
-        .card-body strong { color: #000; } /* Default 'happy' style */
-        .card-body em { color: #888; }
+        /* Card Styles */
+        .card-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .schedule-card { background-color: #ffffff; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); overflow: hidden; }
+        .card-header { font-weight: bold; background-color: #f9f9f9; padding: 12px 15px; border-bottom: 1px solid #eee; color: #004a9c; }
+        .card-body { padding: 15px; font-size: 1.0em; color: #444; line-height: 1.7; }
+        .card-body strong { color: #000; } .card-body em { color: #888; }
+        .card-body strong.unhappy { color: #DBDBDB; background-color: crimson; font-weight: bold; padding: 2px 4px; border-radius: 3px; }
 
-        /* Style for unhappy placements */
-        .card-body strong.unhappy {
-            color: #DBDBDB; /* Light Grey Text */
-            background-color: crimson; /* Crimson Red Background */
-            font-weight: bold;
-            padding: 2px 4px;
-            border-radius: 3px;
-        }
+        /* Hide multi-results area by default */
+        #multi-schedule-results-area { display: none; }
     </style>
 </head>
 <body>
 
-    <h1>Faculty Scheduler (55 Faculty)</h1>
+    <h1>Faculty Scheduler</h1>
 
     <nav>
-        <button id="nav-scheduler" class="active">Scheduler Result</button>
-        <button id="nav-availability">Faculty Availability</button>
-        <button id="rerun-button">Generate New Schedule</button>
-    </nav>
+            <button id="nav-scheduler" class="active">Scheduler Result</button>
+            <button id="nav-availability">Faculty Availability</button>
+        </nav>
+    
+    <div id="upload-container">
+        <label for="file-uploader">Upload Schedule File (.xlsm, .xlsx):</label>
+        <input type="file" id="file-uploader" accept=".xlsx, .xlsm" />
+        <div id="parse-status">Please select a file to begin.</div>
+    </div>
 
     <main id="page-scheduler">
         <div id="status-message">Loading...</div>
-
         <div id="progress-container">
             <div id="stats-container">
                 <div id="timer-label">Time: 0.0s</div>
@@ -206,13 +181,12 @@
             </div>
             <div id="progress-label">Starting...</div>
         </div>
-
-        <div id="schedule-container" class="card-container">
-             </div>
+        <div id="single-schedule-results-area"></div>
+        <div id="multi-schedule-results-area"></div>
     </main>
 
     <main id="page-availability" style="display: none;">
-        <h2>Faculty Availability (55 Faculty)</h2>
+        <h2>Faculty Availability</h2>
         <div id="availability-container" class="card-container"></div>
     </main>
 
@@ -221,124 +195,131 @@
         // --- EMBEDDED WORKER CODE ---
         const workerCode = `
             // --- scheduler_worker.js content START ---
-
-            // --- HELPER FUNCTIONS (needed by the solver) ---
-            function shuffleArray(array) {
-                for (let i = array.length - 1; i > 0; i--) {
-                    const j = Math.floor(Math.random() * (i + 1));
-                    [array[i], array[j]] = [array[j], array[i]];
-                }
-                return array;
-            }
-
-            function yieldWorker() {
-                return new Promise(resolve => setTimeout(resolve, 0));
-            }
-
-            // --- ASYNC OPTIMIZATION SOLVER (Modified for Worker) ---
+            function shuffleArray(array) { for (let i = array.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [array[i], array[j]] = [array[j], array[i]]; } return array; }
+            function yieldWorker() { return new Promise(resolve => setTimeout(resolve, 0)); }
             async function solveFullSearchInWorker(allFaculty, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, initialBestScore) {
-                const schedule = new Map();
-                const assignedLectureSlots = new Set();
-                const facultyTimeSlotMap = new Map();
+                const schedule = new Map(); const assignedLectureSlots = new Set(); const facultyTimeSlotMap = new Map();
                 let progressState = { facultyIndex: 0, combinations: 0, bestScore: initialBestScore };
-                const lectureSlotsByTime = new Map();
-                for (const lecture of allLectureSlots) {
-                    if (!lectureSlotsByTime.has(lecture.timeSlot)) lectureSlotsByTime.set(lecture.timeSlot, []);
-                    lectureSlotsByTime.get(lecture.timeSlot).push(lecture);
-                }
-
+                const lectureSlotsByTime = new Map(); for (const l of allLectureSlots) { if (!lectureSlotsByTime.has(l.timeSlot)) lectureSlotsByTime.set(l.timeSlot, []); lectureSlotsByTime.get(l.timeSlot).push(l); }
                 async function solveForFaculty(facultyIndex, currentUnhappy) {
                     if (currentUnhappy >= progressState.bestScore) return;
                     progressState.facultyIndex = facultyIndex;
-                    if (facultyIndex === allFaculty.length) {
-                        progressState.bestScore = currentUnhappy;
-                        self.postMessage({ type: 'solutionUpdate', schedule: Array.from(schedule.entries()), score: currentUnhappy });
-                        return;
-                    }
+                    if (facultyIndex === allFaculty.length) { progressState.bestScore = currentUnhappy; self.postMessage({ type: 'solutionUpdate', schedule: Array.from(schedule.entries()), score: currentUnhappy }); return; }
                     const faculty = allFaculty[facultyIndex];
-                    if (progressState.combinations % 1000 === 0) { // Update main thread less often
-                        self.postMessage({ type: 'progressUpdate', facultyIndex: facultyIndex, facultyName: faculty, combinations: progressState.combinations });
-                        await yieldWorker();
-                    }
-                    const assignedTimes = facultyTimeSlotMap.get(faculty) || new Set();
-                    const preferredSlots = facultyPreferredSlots.get(faculty) || new Set();
-                    const possible = [];
-                    for (const l of allLectureSlots) {
-                        if (!assignedLectureSlots.has(l.id) && !assignedTimes.has(l.timeSlot)) {
-                            const isHappy = preferredSlots.has(l.timeSlot);
-                            possible.push({ lecture: l, isHappy: isHappy });
-                        }
-                    }
+                    if (progressState.combinations % 1000 === 0) { self.postMessage({ type: 'progressUpdate', facultyIndex: facultyIndex, facultyName: faculty, combinations: progressState.combinations }); await yieldWorker(); }
+                    const assignedTimes = facultyTimeSlotMap.get(faculty) || new Set(); const preferredSlots = facultyPreferredSlots.get(faculty) || new Set(); const possible = [];
+                    for (const l of allLectureSlots) { if (!assignedLectureSlots.has(l.id) && !assignedTimes.has(l.timeSlot)) { const isHappy = preferredSlots.has(l.timeSlot); possible.push({ lecture: l, isHappy: isHappy }); } }
                     possible.sort((a, b) => b.isHappy - a.isHappy);
                     for (const { lecture, isHappy } of possible) {
-                        progressState.combinations++;
-                        const newUnhappy = currentUnhappy + (isHappy ? 0 : 1);
-                        schedule.set(faculty, { lecture: lecture, isHappy: isHappy });
-                        assignedLectureSlots.add(lecture.id);
-                        assignedTimes.add(lecture.timeSlot);
-                        facultyTimeSlotMap.set(faculty, assignedTimes);
+                        progressState.combinations++; const newUnhappy = currentUnhappy + (isHappy ? 0 : 1);
+                        schedule.set(faculty, { lecture: lecture, isHappy: isHappy }); assignedLectureSlots.add(lecture.id); assignedTimes.add(lecture.timeSlot); facultyTimeSlotMap.set(faculty, assignedTimes);
                         await solveForFaculty(facultyIndex + 1, newUnhappy);
-                        schedule.delete(faculty);
-                        assignedLectureSlots.delete(lecture.id);
-                        assignedTimes.delete(lecture.timeSlot);
+                        schedule.delete(faculty); assignedLectureSlots.delete(lecture.id); assignedTimes.delete(lecture.timeSlot);
                     }
                 }
-                const shuffledFaculty = shuffleArray([...allFaculty]);
-                await solveForFaculty(0, 0);
+                const shuffledFaculty = shuffleArray([...allFaculty]); await solveForFaculty(0, 0);
                 return { finalCombinations: progressState.combinations, finalScore: progressState.bestScore };
             }
-
-            // --- Worker Message Listener ---
             self.onmessage = async (event) => {
-                console.log("Worker received data");
-                const { allFaculty, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, initialBestScore } = event.data;
+                console.log("Worker received data"); const { allFaculty, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, initialBestScore } = event.data;
                 try {
                     const reconstructedTeacherAvailabilityMap = new Map(teacherAvailabilityMap);
                     const reconstructedFacultyPreferredSlots = new Map(facultyPreferredSlots.map(([k, v]) => [k, new Set(v)]));
                     const result = await solveFullSearchInWorker(allFaculty, allLectureSlots, reconstructedTeacherAvailabilityMap, reconstructedFacultyPreferredSlots, initialBestScore);
                     self.postMessage({ type: 'complete', ...result });
-                } catch (error) {
-                    console.error("Error in worker:", error);
-                    self.postMessage({ type: 'error', message: error.message });
-                }
-            };
-            console.log("Worker code started");
+                } catch (error) { console.error("Error in worker:", error); self.postMessage({ type: 'error', message: error.message }); }
+            }; console.log("Worker code started");
             // --- scheduler_worker.js content END ---
         `;
 
         // --- HELPER FUNCTIONS (shuffle, formatTime) ---
-        function shuffleArray(array) {
-            for (let i = array.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [array[i], array[j]] = [array[j], array[i]];
-            }
-            return array;
-        }
+        function shuffleArray(array) { for (let i = array.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [array[i], array[j]] = [array[j], array[i]]; } return array; }
+        function formatTime(totalSeconds) { if (totalSeconds >= 3600) { const h = Math.floor(totalSeconds / 3600); const r = totalSeconds % 3600; const m = Math.floor(r / 60); const s = r % 60; return `Time: ${h}h ${m}m ${s.toFixed(1)}s`; } if (totalSeconds >= 60) { const m = Math.floor(totalSeconds / 60); const s = totalSeconds % 60; return `Time: ${m}m ${s.toFixed(1)}s`; } return `Time: ${totalSeconds.toFixed(1)}s`; }
 
-        function formatTime(totalSeconds) {
-            if (totalSeconds >= 3600) { const h = Math.floor(totalSeconds / 3600); const r = totalSeconds % 3600; const m = Math.floor(r / 60); const s = r % 60; return `Time: ${h}h ${m}m ${s.toFixed(1)}s`; }
-            if (totalSeconds >= 60) { const m = Math.floor(totalSeconds / 60); const s = totalSeconds % 60; return `Time: ${m}m ${s.toFixed(1)}s`; }
-            return `Time: ${totalSeconds.toFixed(1)}s`;
-        }
+        // --- DATA GENERATION is REPLACED by PARSING ---
 
-        // --- PROCEDURAL DATA GENERATION ---
-        function generateTestData(numFaculty, numTimeSlots) {
-            // ... (Unchanged) ...
-            const allFaculty = []; let allTimeSlots = []; const allLectureSlots = []; const teacherAvailabilityMap = new Map();
-            const lastNames = ['Adams', 'Baker', 'Chen', 'Davis', 'Elara', 'Faruqi', 'Gupta', 'Hernandez', 'Imani', 'Jones', 'Kim', 'Lee', 'Miller', 'Ngo', 'Okafor', 'Patel', 'Quinn', 'Rossi', 'Smith', 'Tanaka', 'Umar', 'Volkov', 'Walker', 'Xiong', 'Yilmaz', 'Zhang', 'Adebayo', 'Bose', 'Chavez', 'Dubois', 'Erikson', 'Fisher', 'Gomez', 'Huxley', 'Ivanov', 'Jang', 'Kaur', 'Lopez', 'Mbeki', 'Nguyen', 'Perez', 'Ramos', 'Silva', 'Torres', 'Vargas', 'Wang', 'Yates', 'Zimmerman', 'Ali', 'Bedi', 'Cabrera', 'Deng', 'Escobar', 'Flores', 'Gagnon'];
-            for (let i = 0; i < numFaculty; i++) { const fName = `F${i + 1}_${lastNames[i % lastNames.length]}`; allFaculty.push(fName); teacherAvailabilityMap.set(fName, []); }
-            const slotNamePool = ['MWF 9-10', 'MWF 10-11', 'MWF 11-12', 'MWF 1-2', 'MWF 2-3', 'TTh 9-10:30', 'TTh 10:30-12', 'TTh 1-2:30', 'TTh 2:30-4', 'M 1-2', 'M 2-3', 'M 3-4', 'T 1-2', 'T 2-3', 'W 1-2', 'W 2-3', 'W 3-4', 'Th 1-2', 'Th 2-3', 'F 1-2', 'F 2-3', 'F 3-4'];
-            allTimeSlots = shuffleArray(slotNamePool).slice(0, numTimeSlots);
-            for (const slot of allTimeSlots) { const nR = Math.floor(Math.random() * 6) + 1; for (let i = 1; i <= nR; i++) { allLectureSlots.push({ id: `${slot} (Room ${i})`, timeSlot: slot }); } }
-            const minA = 2, maxA = 5;
-            for (const fac of allFaculty) { const shufSlots = shuffleArray([...allTimeSlots]); const nAvail = Math.floor(Math.random() * (maxA - minA + 1)) + minA; const avSlots = shufSlots.slice(0, nAvail); teacherAvailabilityMap.set(fac, avSlots); }
-            const facultyPreferredSlots = new Map(); for(const [fac, slots] of teacherAvailabilityMap.entries()) { facultyPreferredSlots.set(fac, new Set(slots)); }
-            const transferableFacultyPreferredSlots = Array.from(facultyPreferredSlots.entries()).map(([k, v]) => [k, Array.from(v)]);
-            return { allFaculty, allTimeSlots, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, transferableFacultyPreferredSlots };
+        // --- NEW: Excel Parsing Function ---
+        async function parseExcelFile(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const data = new Uint8Array(event.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+
+                        // 1. Parse Faculty Sheet
+                        const facultySheet = workbook.Sheets['Faculty'];
+                        if (!facultySheet) reject(new Error("Sheet 'Faculty' not found."));
+                        const facultyJson = XLSX.utils.sheet_to_json(facultySheet, { header: 1 });
+                        const allFaculty = facultyJson.map(row => row[0]).filter(Boolean); // Get column A, skip empty
+                        
+                        // 2. Parse TimeSlots Sheet
+                        const timeSlotsSheet = workbook.Sheets['TimeSlots'];
+                        if (!timeSlotsSheet) reject(new Error("Sheet 'TimeSlots' not found."));
+                        const timeSlotsJson = XLSX.utils.sheet_to_json(timeSlotsSheet);
+                        
+                        const allTimeSlots = [];
+                        const allLectureSlots = [];
+                        for (const row of timeSlotsJson) {
+                            const slotName = row['Time Slot Name']; // Assumes header 'Time Slot Name'
+                            const numRooms = parseInt(row['Number of Rooms'], 10); // Assumes header 'Number of Rooms'
+                            
+                            if (slotName && numRooms > 0) {
+                                allTimeSlots.push(slotName);
+                                for (let i = 1; i <= numRooms; i++) {
+                                    allLectureSlots.push({ id: `${slotName} (Room ${i})`, timeSlot: slotName });
+                                }
+                            }
+                        }
+                        
+                        // 3. Parse Availability Sheet
+                        const availabilitySheet = workbook.Sheets['Availability'];
+                        if (!availabilitySheet) reject(new Error("Sheet 'Availability' not found."));
+                        const availabilityJson = XLSX.utils.sheet_to_json(availabilitySheet, { header: 1 });
+                        
+                        const timeSlotHeaders = availabilityJson[0].slice(1); // Get time slots from header row
+                        const facultyAvailabilityRows = availabilityJson.slice(1); // Get faculty rows
+                        
+                        const teacherAvailabilityMap = new Map();
+                        const facultyPreferredSlots = new Map();
+                        
+                        for (const row of facultyAvailabilityRows) {
+                            const facultyName = row[0];
+                            if (facultyName) {
+                                const preferredSlots = [];
+                                const preferredSlotSet = new Set();
+                                
+                                row.slice(1).forEach((cell, index) => {
+                                    // If cell is marked (X, 1, y, yes), it's a preference
+                                    if (cell && ['x', '1', 'y', 'yes'].includes(String(cell).toLowerCase())) {
+                                        const slotName = timeSlotHeaders[index];
+                                        if (slotName) {
+                                            preferredSlots.push(slotName);
+                                            preferredSlotSet.add(slotName);
+                                        }
+                                    }
+                                });
+                                teacherAvailabilityMap.set(facultyName, preferredSlots);
+                                facultyPreferredSlots.set(facultyName, preferredSlotSet);
+                            }
+                        }
+                        
+                        // Convert Map<Set> to transferable format
+                        const transferableFacultyPreferredSlots = Array.from(facultyPreferredSlots.entries()).map(([k, v]) => [k, Array.from(v)]);
+
+                        resolve({ allFaculty, allTimeSlots, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, transferableFacultyPreferredSlots });
+                        
+                    } catch (e) {
+                        reject(e);
+                    }
+                };
+                reader.onerror = (e) => reject(new Error("File reading error."));
+                reader.readAsArrayBuffer(file);
+            });
         }
 
         // --- Helper: Update Progress Bar (UI Thread) ---
-        function updateProgress(facultyIndex, totalFaculty, facultyName, progressBar, progressLabel, combinations, comboLabel) {
+        function updateProgress(facultyIndex, totalFaculty, facultyName, progressBar, progressLabel, combinations, comboLabel) { /* ... unchanged ... */
              const percentage = (facultyIndex / totalFaculty) * 100; progressBar.style.width = percentage + '%';
             if (facultyIndex === totalFaculty) { progressLabel.textContent = "Search complete!"; }
             else if (facultyName) { progressLabel.textContent = `Optimizing: ${facultyName} (${facultyIndex}/${totalFaculty})...`; }
@@ -346,33 +327,168 @@
             comboLabel.textContent = `Combinations: ${combinations.toLocaleString()}`;
         }
 
-        // --- PHASE 1: HEURISTIC SOLVER (MRV + First Choice - deterministic) ---
-        function runHeuristicSolver(allFaculty, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots) {
+        // --- HEURISTIC 1: MRV + Random Choice ---
+        function runHeuristicMRVRandom(allFaculty, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots) { /* ... unchanged ... */
              const schedule = new Map(); const assignedLectureSlots = new Set(); const facultyTimeSlotMap = new Map(); let numUnhappy = 0;
             const lectureSlotsByTime = new Map(); for (const l of allLectureSlots) { if (!lectureSlotsByTime.has(l.timeSlot)) lectureSlotsByTime.set(l.timeSlot, []); lectureSlotsByTime.get(l.timeSlot).push(l); }
             const sortedFaculty = [...allFaculty].sort((a, b) => (teacherAvailabilityMap.get(a)?.length || 0) - (teacherAvailabilityMap.get(b)?.length || 0));
             for (const faculty of sortedFaculty) {
-                const assignedTimes = facultyTimeSlotMap.get(faculty) || new Set(); let placed = false; const prefSlots = teacherAvailabilityMap.get(faculty) || []; const prefSet = facultyPreferredSlots.get(faculty) || new Set();
-                for (const timeSlot of prefSlots) { if (!assignedTimes.has(timeSlot)) { const lecturesInSlot = lectureSlotsByTime.get(timeSlot) || []; for (const l of lecturesInSlot) { if (!assignedLectureSlots.has(l.id)) { schedule.set(faculty, { lecture: l, isHappy: true }); assignedLectureSlots.add(l.id); assignedTimes.add(l.timeSlot); facultyTimeSlotMap.set(faculty, assignedTimes); placed = true; break; } } } if (placed) break; }
-                if (!placed) { for (const l of allLectureSlots) { if (!assignedLectureSlots.has(l.id) && !assignedTimes.has(l.timeSlot)) { const isHappy = prefSet.has(l.timeSlot); schedule.set(faculty, { lecture: l, isHappy: isHappy }); assignedLectureSlots.add(l.id); assignedTimes.add(l.timeSlot); facultyTimeSlotMap.set(faculty, assignedTimes); if (!isHappy) numUnhappy++; placed = true; break; } } }
-                if (!placed) { console.error("Heuristic failed to place " + faculty); }
-            } return { schedule, numUnhappy };
+                const assignedTimes = facultyTimeSlotMap.get(faculty) || new Set(); let placed = false; const prefSlots = teacherAvailabilityMap.get(faculty) || []; const prefSet = facultyPreferredSlots.get(faculty) || new Set(); let potentialHappy = [];
+                for (const ts of prefSlots) { if (!assignedTimes.has(ts)) { (lectureSlotsByTime.get(ts) || []).forEach(l => { if (!assignedLectureSlots.has(l.id)) potentialHappy.push(l); }); } }
+                if (potentialHappy.length > 0) { shuffleArray(potentialHappy); const chosen = potentialHappy[0]; schedule.set(faculty, { lecture: chosen, isHappy: true }); assignedLectureSlots.add(chosen.id); assignedTimes.add(chosen.timeSlot); facultyTimeSlotMap.set(faculty, assignedTimes); placed = true; }
+                if (!placed) { let potentialUnhappy = []; for (const l of allLectureSlots) { if (!assignedLectureSlots.has(l.id) && !assignedTimes.has(l.timeSlot) && !prefSet.has(l.timeSlot)) { potentialUnhappy.push(l); } }
+                    if (potentialUnhappy.length > 0) { shuffleArray(potentialUnhappy); const chosen = potentialUnhappy[0]; schedule.set(faculty, { lecture: chosen, isHappy: false }); assignedLectureSlots.add(chosen.id); assignedTimes.add(chosen.timeSlot); facultyTimeSlotMap.set(faculty, assignedTimes); numUnhappy++; placed = true; } }
+                 if (!placed) { let failsafe = []; for (const l of allLectureSlots) { if (!assignedLectureSlots.has(l.id) && !assignedTimes.has(l.timeSlot)) failsafe.push(l); }
+                      if(failsafe.length > 0) { shuffleArray(failsafe); const chosen = failsafe[0]; const isHappy = prefSet.has(chosen.timeSlot); schedule.set(faculty, { lecture: chosen, isHappy: isHappy }); assignedLectureSlots.add(chosen.id); assignedTimes.add(chosen.timeSlot); facultyTimeSlotMap.set(faculty, assignedTimes); if (!isHappy) numUnhappy++; placed = true; }
+                      else { console.error("H1 fail: " + faculty); } }
+            } return {
+                name: `Strategy 1: "Fewest Preferences" + Random Choice (Conflicts: ${numUnhappy})`,
+                description: "This strategy prioritizes faculty with the <strong>fewest preferred slots (MRV)</strong>. It tries to place them first by <strong>randomly</strong> picking one of their available preferred slots.",
+                schedule,
+                numUnhappy
+            };
         }
 
+        // --- HEURISTIC 2: MRV + LCV-like Slot Choice ---
+        function runHeuristicMRV_LCV(allFaculty, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots) { /* ... unchanged ... */
+             const schedule = new Map(); const assignedLectureSlots = new Set(); const facultyTimeSlotMap = new Map(); let numUnhappy = 0; let unassigned = new Set(allFaculty);
+            const lectureSlotsByTime = new Map(); for (const l of allLectureSlots) { if (!lectureSlotsByTime.has(l.timeSlot)) lectureSlotsByTime.set(l.timeSlot, []); lectureSlotsByTime.get(l.timeSlot).push(l); }
+            let facultyToAssign = [...allFaculty].sort((a, b) => (teacherAvailabilityMap.get(a)?.length || 0) - (teacherAvailabilityMap.get(b)?.length || 0));
+            for (const faculty of facultyToAssign) {
+                if (!unassigned.has(faculty)) continue; const assignedTimes = facultyTimeSlotMap.get(faculty) || new Set(); const prefSet = facultyPreferredSlots.get(faculty) || new Set(); let placed = false; let potentialHappy = [];
+                for (const ts of prefSet) { if (!assignedTimes.has(ts)) { (lectureSlotsByTime.get(ts) || []).forEach(l => { if (!assignedLectureSlots.has(l.id)) { let score = 0; unassigned.forEach(o => { if (o !== faculty && (facultyPreferredSlots.get(o) || new Set()).has(ts)) score++; }); potentialHappy.push({ lecture: l, score: score }); } }); } }
+                if (potentialHappy.length > 0) { potentialHappy.sort((a, b) => a.score - b.score); const bestScore = potentialHappy[0].score; const best = potentialHappy.filter(s => s.score === bestScore); const chosen = shuffleArray(best)[0].lecture; schedule.set(faculty, { lecture: chosen, isHappy: true }); assignedLectureSlots.add(chosen.id); assignedTimes.add(chosen.timeSlot); facultyTimeSlotMap.set(faculty, assignedTimes); unassigned.delete(faculty); placed = true; }
+                if (!placed) { let potentialUnhappy = []; for (const l of allLectureSlots) { if (!assignedLectureSlots.has(l.id) && !assignedTimes.has(l.timeSlot) && !prefSet.has(l.timeSlot)) { let score = 0; unassigned.forEach(o => { if (o !== faculty && (facultyPreferredSlots.get(o) || new Set()).has(l.timeSlot)) score++; }); potentialUnhappy.push({ lecture: l, score: score }); } }
+                    if (potentialUnhappy.length > 0) { potentialUnhappy.sort((a, b) => a.score - b.score); const bestScore = potentialUnhappy[0].score; const best = potentialUnhappy.filter(s => s.score === bestScore); const chosen = shuffleArray(best)[0].lecture; schedule.set(faculty, { lecture: chosen, isHappy: false }); assignedLectureSlots.add(chosen.id); assignedTimes.add(chosen.timeSlot); facultyTimeSlotMap.set(faculty, assignedTimes); unassigned.delete(faculty); numUnhappy++; placed = true; } }
+                 if (!placed) { let failsafe = []; for (const l of allLectureSlots) { if (!assignedLectureSlots.has(l.id) && !assignedTimes.has(l.timeSlot)) failsafe.push(l); }
+                      if(failsafe.length > 0) { shuffleArray(failsafe); const chosen = failsafe[0]; const isHappy = prefSet.has(chosen.timeSlot); schedule.set(faculty, { lecture: chosen, isHappy: isHappy }); assignedLectureSlots.add(chosen.id); assignedTimes.add(chosen.timeSlot); facultyTimeSlotMap.set(faculty, assignedTimes); unassigned.delete(faculty); if (!isHappy) numUnhappy++; placed = true; }
+                      else { console.error("H2 fail: " + faculty); } }
+            } return {
+                name: `Strategy 2: "Fewest Preferences" + "Quietest Slot" (Conflicts: ${numUnhappy})`,
+                description: "This smarter strategy also picks faculty with the <strong>fewest preferences (MRV)</strong> first. However, it assigns them to the <strong>'quietest' slot (LCV)</strong>—the one that is least desired by other unassigned faculty, saving the more popular slots for later.",
+                schedule,
+                numUnhappy
+            };
+        }
+
+        // --- HEURISTIC 3: Slot Scarcity + MRV Tiebreak ---
+        function runHeuristicSlotScarcity(allFaculty, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots) { /* ... unchanged ... */
+             const schedule = new Map(); const assignedLectureSlots = new Set(); const facultyTimeSlotMap = new Map(); let numUnhappy = 0; let unassigned = new Set(allFaculty); let unassignedSlots = new Set(allLectureSlots.map(l => l.id)); const lectureLookup = new Map(allLectureSlots.map(l => [l.id, l]));
+            while (unassigned.size > 0 && unassignedSlots.size > 0) {
+                 let minCount = Infinity; let potentials = [];
+                 for (const sId of unassignedSlots) { const l = lectureLookup.get(sId); let prefCount = 0; let currentFacs = []; unassigned.forEach(f => { const assignedT = facultyTimeSlotMap.get(f) || new Set(); if ((facultyPreferredSlots.get(f) || new Set()).has(l.timeSlot) && !assignedT.has(l.timeSlot)) { prefCount++; currentFacs.push(f); } }); if (prefCount > 0 && prefCount < minCount) { minCount = prefCount; potentials = [{ slotId: sId, facultyList: currentFacs }]; } else if (prefCount > 0 && prefCount === minCount) { potentials.push({ slotId: sId, facultyList: currentFacs }); } }
+                 if (potentials.length === 0) { minCount = Infinity; potentials = []; for (const sId of unassignedSlots) { const l = lectureLookup.get(sId); let anyCount = 0; let currentAnyFacs = []; unassigned.forEach(f => { const assignedT = facultyTimeSlotMap.get(f) || new Set(); if (!assignedT.has(l.timeSlot)) { anyCount++; currentAnyFacs.push(f); } }); if (anyCount > 0 && anyCount < minCount) { minCount = anyCount; potentials = [{ slotId: sId, facultyList: currentAnyFacs }]; } else if (anyCount > 0 && anyCount === minCount) { potentials.push({ slotId: sId, facultyList: currentAnyFacs }); } } if(potentials.length === 0){ console.error("H3 fallback fail."); break; } }
+                 const chosenInfo = shuffleArray(potentials)[0]; const chosenSId = chosenInfo.slotId; const candidates = chosenInfo.facultyList; candidates.sort((a, b) => (teacherAvailabilityMap.get(a)?.length || 0) - (teacherAvailabilityMap.get(b)?.length || 0)); const chosenFac = candidates[0]; const chosenLec = lectureLookup.get(chosenSId); const isHappy = (facultyPreferredSlots.get(chosenFac) || new Set()).has(chosenLec.timeSlot);
+                 schedule.set(chosenFac, { lecture: chosenLec, isHappy: isHappy }); assignedLectureSlots.add(chosenLec.id); unassignedSlots.delete(chosenLec.id); unassigned.delete(chosenFac); const assignedT = facultyTimeSlotMap.get(chosenFac) || new Set(); assignedT.add(chosenLec.timeSlot); facultyTimeSlotMap.set(chosenFac, assignedT); if (!isHappy) numUnhappy++;
+            }
+             if (unassigned.size > 0) { console.warn(`H3: ${unassigned.size} unplaced, forcing.`); for(const f of unassigned) { let placed = false; const assignedT = facultyTimeSlotMap.get(f) || new Set(); for (const l of allLectureSlots) { if (!assignedLectureSlots.has(l.id) && !assignedT.has(l.timeSlot)) { const isHappy = (facultyPreferredSlots.get(f) || new Set()).has(l.timeSlot); schedule.set(f, { lecture: l, isHappy: isHappy }); assignedLectureSlots.add(l.id); assignedT.add(l.timeSlot); facultyTimeSlotMap.set(f, assignedT); if (!isHappy) numUnhappy++; placed = true; break; } } if(!placed) console.error("H3 Failsafe fail: " + f); } } return {
+                 name: `Strategy 3: "Scarcest Slot" First (Conflicts: ${numUnhappy})`,
+                 description: "This strategy focuses on the time slots, not the faculty. It finds the <strong>'scarcest' slot</strong> (preferred by the fewest people) and assigns it. To decide who gets that slot, it gives it to the faculty member who has the fewest other preferences (MRV tie-breaker).",
+                 schedule,
+                 numUnhappy
+             };
+        }
 
         // --- Function to render the Faculty Availability page ---
-        function renderAvailabilityPage(allFaculty, teacherAvailabilityMap, container) {
+        function renderAvailabilityPage(allFaculty, teacherAvailabilityMap, container) { /* ... unchanged ... */
              let htmlContent = ""; const sortedFaculty = [...allFaculty].sort();
             for (const faculty of sortedFaculty) { const availableSlots = teacherAvailabilityMap.get(faculty) || []; const sortedSlots = [...availableSlots].sort(); htmlContent += `<div class="schedule-card"><div class="card-header">${faculty}</div><div class="card-body">${sortedSlots.join('<br>')}</div></div>`; } container.innerHTML = htmlContent;
         }
 
-        // --- Function to render the SINGLE Schedule ---
-        function renderSingleSchedule(schedule, allTimeSlots, allLectureSlots, containerEl) {
+        // --- Function to render a SINGLE Schedule ---
+        function renderSingleSchedule(schedule, allTimeSlots, allLectureSlots, containerEl) { /* ... unchanged ... */
             const assignedMap = new Map(); for (const [f, a] of schedule.entries()) { assignedMap.set(a.lecture.id, { faculty: f, isHappy: a.isHappy }); } const tsGroup = new Map(); for (const ts of allTimeSlots) { tsGroup.set(ts, []); }
             for (const l of allLectureSlots) { const rName = l.id.substring(l.timeSlot.length).trim(); const assign = assignedMap.get(l.id); let assignStr; if (assign) { const uhCls = assign.isHappy ? '' : 'class="unhappy"'; assignStr = `${rName}: <strong ${uhCls}>${assign.faculty}</strong>`; } else { assignStr = `${rName}: <em>(Unassigned)</em>`; } tsGroup.get(l.timeSlot).push(assignStr); }
-            let htmlContent = ""; const sortedTS = [...allTimeSlots].sort(); for (const ts of sortedTS) { const assigns = tsGroup.get(ts) || []; htmlContent += `<div class="schedule-card"><div class="card-header">${ts}</div><div class="card-body">${assigns.join('<br>')}</div></div>`; }
-            containerEl.innerHTML = htmlContent; // Render directly
+            let htmlContent = `<div class="card-container">`; const sortedTS = [...allTimeSlots].sort(); for (const ts of sortedTS) { const assigns = tsGroup.get(ts) || []; htmlContent += `<div class="schedule-card"><div class="card-header">${ts}</div><div class="card-body">${assigns.join('<br>')}</div></div>`; } htmlContent += `</div>`; containerEl.innerHTML = htmlContent;
         }
+
+        // --- Function to render MULTIPLE Schedules ---
+                function renderMultipleHeuristics(results, allTimeSlots, allLectureSlots, containerEl) {
+                     
+                     // Define color schemes for each heuristic
+                     const schemes = [
+                        { // Scheme 0 (Blue)
+                            headerBg: '#f0f6ff',
+                            headerColor: '#004a9c',
+                            cardBorder: '#b8daff'
+                        },
+                        { // Scheme 1 (Green)
+                            headerBg: '#f0fff0',
+                            headerColor: '#155724',
+                            cardBorder: '#c3e6cb'
+                        },
+                        { // Scheme 2 (Yellow)
+                            headerBg: '#fffaf0',
+                            headerColor: '#856404',
+                            cardBorder: '#ffeeba'
+                        }
+                     ];
+
+                     let fullHtml = "";
+                     
+                     // Use the index from the forEach loop to apply styles
+                     results.forEach((result, index) => {
+                        
+                        // Get the color scheme for this index
+                        const colors = schemes[index % schemes.length];
+
+                        // --- H3 and Description ---
+                        fullHtml += `<h3>${result.name}</h3>`;
+                        if(result.description) {
+                            fullHtml += `<p style="margin-top: -10px; margin-bottom: 20px; font-size: 0.9em; font-style: italic; max-width: 800px; color: #333;">${result.description}</p>`;
+                        }
+                        
+                        // --- Map setup ---
+                        const assignedMap = new Map();
+                        for (const [f, a] of result.schedule.entries()) {
+                            assignedMap.set(a.lecture.id, { faculty: f, isHappy: a.isHappy });
+                        }
+                        const tsGroup = new Map();
+                        for (const ts of allTimeSlots) {
+                            tsGroup.set(ts, []);
+                        }
+                        
+                        for (const l of allLectureSlots) {
+                            const rName = l.id.substring(l.timeSlot.length).trim();
+                            const assign = assignedMap.get(l.id);
+                            let assignStr;
+                            if (assign) {
+                                const uhCls = assign.isHappy ? '' : 'class="unhappy"';
+                                assignStr = `${rName}: <strong ${uhCls}>${assign.faculty}</strong>`;
+                            } else {
+                                assignStr = `${rName}: <em>(Unassigned)</em>`;
+                            }
+                            tsGroup.get(l.timeSlot).push(assignStr);
+                        }
+                         
+                        // --- Card Container ---
+                        fullHtml += `<div class="card-container">`;
+                         
+                        const sortedTS = [...allTimeSlots].sort();
+                        for (const ts of sortedTS) {
+                            const assigns = tsGroup.get(ts) || [];
+                            
+                            // --- Apply Inline Styles to Cards ---
+                            const cardStyle = `border: 1px solid ${colors.cardBorder};`;
+                            const headerStyle = `background-color: ${colors.headerBg}; color: ${colors.headerColor};`;
+                            
+                            fullHtml += `<div class="schedule-card" style="${cardStyle}">`;
+                            fullHtml +=   `<div class="card-header" style="${headerStyle}">${ts}</div>`;
+                            fullHtml +=   `<div class="card-body">${assigns.join('<br>')}</div>`;
+                            fullHtml += `</div>`;
+                        }
+                         
+                        fullHtml += `</div>`;
+
+                        // --- Add the line gap ---
+                        if (index < results.length - 1) { // Don't add a line after the last one
+                           fullHtml += `<hr style="margin: 40px 0 20px 0; border: none; border-top: 2px solid #eee;">`;
+                        }
+                     
+                     });
+                     
+                     containerEl.innerHTML = fullHtml;
+                }
 
 
         // --- This code runs after the page loads ---
@@ -381,13 +497,13 @@
             // --- Get ALL DOM elements ONCE ---
             const navScheduler = document.getElementById("nav-scheduler");
             const navAvailability = document.getElementById("nav-availability");
-            const rerunButton = document.getElementById("rerun-button");
 
             const pageScheduler = document.getElementById("page-scheduler");
             const pageAvailability = document.getElementById("page-availability");
 
             const statusEl = document.getElementById("status-message");
-            const scheduleContainer = document.getElementById("schedule-container");
+            const singleScheduleArea = document.getElementById("single-schedule-results-area"); // Target for single result
+            const multiScheduleArea = document.getElementById("multi-schedule-results-area"); // Target for multi results
             const availabilityContainer = document.getElementById("availability-container");
 
             const progressContainer = document.getElementById("progress-container");
@@ -396,179 +512,212 @@
 
             const timerLabel = document.getElementById("timer-label");
             const comboLabel = document.getElementById("combo-label");
+            
+            const fileUploader = document.getElementById("file-uploader");
+            const parseStatus = document.getElementById("parse-status");
 
             let timerInterval = null;
-            let currentBestScore = Infinity;
-            let heuristicScore = Infinity;
-            const NUM_FACULTY = 55;
-            const NUM_SLOTS = 20;
-
+            let progressState = { facultyIndex: 0, combinations: 0, bestScore: Infinity };
+            let currentData = null; // Store parsed data
             let currentWorker = null;
             let optimizationStartTime = 0;
             let workerObjectURL = null; // Store the Blob URL
+            let bestKnownSchedule = new Map(); // <-- ADD THIS LINE
 
              // --- Create Worker Blob URL ONCE ---
             try {
                 const blob = new Blob([workerCode], { type: 'application/javascript' });
                 workerObjectURL = URL.createObjectURL(blob);
-                console.log("Worker Blob URL created.");
             } catch(e) {
                  console.error("Error creating Blob URL:", e);
-                 statusEl.textContent = "Error: Cannot create worker code. Browser might be too old or configured incorrectly.";
-                 statusEl.className = "failure";
-                 // Disable button if worker creation fails fundamentally
-                 rerunButton.disabled = true;
+                 parseStatus.textContent = "Error: Cannot create background worker. Your browser may be too old or misconfigured.";
+                 parseStatus.style.color = 'red';
                  return; // Stop initialization
             }
+            
+            // --- NEW: Handle File Upload ---
+            fileUploader.addEventListener('change', async (event) => {
+                const file = event.target.files[0];
+                if (!file) return;
+                
+                
+                parseStatus.textContent = "Parsing Excel file...";
+                parseStatus.style.color = '#333';
+                statusEl.style.display = 'none';
 
-
-            // --- Main execution function (Starts Worker) ---
-            function runScheduler() {
-                // Terminate existing worker
-                if (currentWorker) {
-                    currentWorker.terminate();
-                    console.log("Terminated previous worker.");
-                    currentWorker = null;
-                }
-                 if (timerInterval) {
-                     clearInterval(timerInterval);
-                     timerInterval = null;
-                 }
-
-
-                // 1. Setup UI
-                rerunButton.disabled = true;
-                rerunButton.textContent = "Computing...";
-                statusEl.textContent = "Generating new data & finding heuristic solution...";
-                statusEl.className = "";
-                scheduleContainer.innerHTML = "";
-                availabilityContainer.innerHTML = "";
-
-                // Reset UI
-                progressContainer.style.display = "block";
-                timerLabel.textContent = "Time: 0.0s";
-                comboLabel.textContent = "Combinations: 0";
-                currentBestScore = Infinity;
-
-                updateProgress(0, NUM_FACULTY, null, progressBar, progressLabel, 0, comboLabel);
-
-                // 2. Generate Data
-                const { allFaculty, allTimeSlots, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, transferableFacultyPreferredSlots } = generateTestData(NUM_FACULTY, NUM_SLOTS);
-
-                // 3. Render Availability Page
-                renderAvailabilityPage(allFaculty, teacherAvailabilityMap, availabilityContainer);
-
-                // 4. --- PHASE 1: Run Heuristic ---
-                statusEl.textContent = "Finding initial heuristic solution...";
-                const heuristicResult = runHeuristicSolver(allFaculty, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots);
-                heuristicScore = heuristicResult.numUnhappy;
-                currentBestScore = heuristicScore;
-
-                // Render first solution
-                renderSingleSchedule(heuristicResult.schedule, allTimeSlots, allLectureSlots, scheduleContainer);
-                statusEl.textContent = `Heuristic solution found with ${currentBestScore} conflicts. Now searching for a better one in background...`;
-                statusEl.className = "success";
-
-
-                // 5. --- Setup Timer ---
-                optimizationStartTime = performance.now();
-                timerInterval = setInterval(() => {
-                    const elapsedSeconds = ((performance.now() - optimizationStartTime) / 1000);
-                    timerLabel.textContent = formatTime(elapsedSeconds);
-                }, 100);
-
-                // 6. --- PHASE 2: Start Worker ---
-                console.log("Starting worker from Blob URL...");
                 try {
-                    // *** Use the Blob URL ***
-                    currentWorker = new Worker(workerObjectURL);
+                    // Parse the file
+                    const parsedData = await parseExcelFile(file);
+                    currentData = parsedData; // Store the parsed data
+                    
+                    // Render availability page
+                    renderAvailabilityPage(currentData.allFaculty, currentData.teacherAvailabilityMap, availabilityContainer);
+                    
+                    
+                    parseStatus.textContent = `File loaded: ${currentData.allFaculty.length} faculty, ${currentData.allTimeSlots.length} time slots, ${currentData.allLectureSlots.length} total lecture rooms.`;
+                    parseStatus.style.color = 'green';
+                    
+                    // Automatically run the main optimization
+                    await runOptimizeScheduler();
+
                 } catch (e) {
-                     console.error("Error creating worker:", e);
-                     statusEl.textContent = "Error: Could not create background worker. Browser might block Blob URL workers in this context.";
-                     statusEl.className = "failure";
-                     progressContainer.style.display = "none";
-                      if (timerInterval) clearInterval(timerInterval);
-                      timerInterval = null;
-                     rerunButton.disabled = false;
-                     rerunButton.textContent = "Generate New Schedule";
-                     return;
+                    console.error("Error parsing file:", e);
+                    parseStatus.textContent = `Error: ${e.message}. Please check file format and sheet names.`;
+                    parseStatus.style.color = 'red';
+                    currentData = null;
                 }
+            });
 
-                // Handle messages FROM the worker
-                currentWorker.onmessage = (event) => {
-                    const data = event.data;
-                    switch (data.type) {
-                        case 'progressUpdate':
-                            updateProgress(data.facultyIndex, NUM_FACULTY, data.facultyName, progressBar, progressLabel, data.combinations, comboLabel);
-                            break;
-                        case 'solutionUpdate':
-                            if (data.score < currentBestScore) {
-                                currentBestScore = data.score;
-                                console.log("Worker found better solution:", currentBestScore);
-                                const newScheduleMap = new Map(data.schedule);
-                                renderSingleSchedule(newScheduleMap, allTimeSlots, allLectureSlots, scheduleContainer);
-                                statusEl.textContent = `New best solution found! Conflicts: ${currentBestScore}. Still searching...`;
-                                statusEl.className = "improved";
+
+            // --- Main execution function (OPTIMIZATION) ---
+                        async function runOptimizeScheduler() {
+                            if (!currentData) {
+                                statusEl.textContent = "Please upload an Excel file first.";
+                                statusEl.className = "failure";
+                                return;
                             }
-                            break;
-                        case 'complete':
-                            console.log("Worker finished.");
-                            clearInterval(timerInterval);
-                            timerInterval = null;
-                            const durationInSeconds = (performance.now() - optimizationStartTime) / 1000;
-                            progressContainer.style.display = "none";
-                            const finalCombinations = data.finalCombinations.toLocaleString();
-                            currentBestScore = data.finalScore;
+                            
+                            // Terminate existing worker
+                            if (currentWorker) { currentWorker.terminate(); currentWorker = null; }
+                            if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
 
-                            if (currentBestScore < heuristicScore) {
-                                statusEl.textContent = `Search complete! Final best score: ${currentBestScore} conflicts. (Searched ${finalCombinations} combinations in ${durationInSeconds.toFixed(3)}s)`;
-                                statusEl.className = "success";
-                            } else {
-                                statusEl.textContent = `Search complete. Heuristic was optimal. Score: ${currentBestScore} conflicts. (Searched ${finalCombinations} combinations in ${durationInSeconds.toFixed(3)}s)`;
-                                statusEl.className = "success";
+                            // 1. Setup UI
+                            statusEl.textContent = "Running initial heuristic solutions...";
+                            statusEl.className = "info";
+                            statusEl.style.display = 'block';
+                            singleScheduleArea.innerHTML = "";
+                            multiScheduleArea.innerHTML = ""; // Clear both areas
+                            multiScheduleArea.style.display = 'block'; // Show multi area
+                            singleScheduleArea.style.display = 'block'; // Show single area
+
+                            const { allFaculty, allTimeSlots, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, transferableFacultyPreferredSlots } = currentData;
+
+                            // --- Reset UI for optimization ---
+                            progressContainer.style.display = "block";
+                            timerLabel.textContent = "Time: 0.0s";
+                            comboLabel.textContent = "Combinations: 0";
+                            progressState.facultyIndex = 0;
+                            progressState.combinations = 0;
+                            progressState.bestScore = Infinity;
+                            bestKnownSchedule = new Map(); // Clear old schedule
+                            updateProgress(0, allFaculty.length, null, progressBar, progressLabel, 0, comboLabel);
+
+                            // 3. --- PHASE 1: Run ALL Heuristics ---
+                            const heuristicResults = [];
+                            heuristicResults.push(runHeuristicMRVRandom(allFaculty, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots));
+                            heuristicResults.push(runHeuristicMRV_LCV(allFaculty, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots));
+                            heuristicResults.push(runHeuristicSlotScarcity(allFaculty, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots));
+
+                            // 3b. --- Render ALL Heuristics to the multi-area ---
+                            multiScheduleArea.innerHTML = '<h2 style="color:#333; border-bottom:1px solid #ccc; padding-bottom:5px;">Heuristic Pre-Check</h2>';
+                            renderMultipleHeuristics(heuristicResults, allTimeSlots, allLectureSlots, multiScheduleArea);
+
+                            // 3c. --- Find the BEST heuristic solution ---
+                            let bestHeuristic = heuristicResults[0];
+                            for(const result of heuristicResults) {
+                                if (result.numUnhappy < bestHeuristic.numUnhappy) {
+                                    bestHeuristic = result;
+                                }
                             }
-                            rerunButton.disabled = false;
-                            rerunButton.textContent = "Generate New Schedule";
-                            currentWorker = null; // Clear worker reference
-                            break;
-                         case 'error':
-                             console.error("Worker error:", data.message);
-                             clearInterval(timerInterval);
-                             timerInterval = null;
-                             progressContainer.style.display = "none";
-                             statusEl.textContent = `Error during optimization: ${data.message}`;
-                             statusEl.className = "failure";
-                             rerunButton.disabled = false;
-                             rerunButton.textContent = "Generate New Schedule";
-                             currentWorker = null;
-                             break;
-                    }
-                };
+                            progressState.bestScore = bestHeuristic.numUnhappy;
+                            bestKnownSchedule = bestHeuristic.schedule; // Save the best heuristic schedule
 
-                 // Handle potential errors starting the worker
-                currentWorker.onerror = (error) => {
-                     console.error("Worker initialization error:", error);
-                     clearInterval(timerInterval);
-                     timerInterval = null;
-                     progressContainer.style.display = "none";
-                     statusEl.textContent = `Failed to start background optimizer: ${error.message}`;
-                     statusEl.className = "failure";
-                     rerunButton.disabled = false;
-                     rerunButton.textContent = "Generate New Schedule";
-                     currentWorker = null;
-                };
+                            // 3d. --- Render the BEST one to the single-area (this one will be updated) ---
+                            singleScheduleArea.innerHTML = '<h2 style="color:#333; border-bottom:1px solid #ccc; padding-bottom:5px;">Best Solution (Optimizing...)</h2>';
+                            renderSingleSchedule(bestKnownSchedule, allTimeSlots, allLectureSlots, singleScheduleArea);
+                            
+                            statusEl.textContent = `Heuristics complete. Best initial score: ${progressState.bestScore} conflicts. Now searching for a better one...`;
+                            statusEl.className = "success";
 
-                // Send data TO the worker
-                 console.log("Sending data to worker...");
-                 currentWorker.postMessage({
-                     allFaculty,
-                     allLectureSlots,
-                     teacherAvailabilityMap: Array.from(teacherAvailabilityMap.entries()),
-                     facultyPreferredSlots: transferableFacultyPreferredSlots,
-                     initialBestScore: currentBestScore
-                 });
+                            // 4. --- Setup Timer ---
+                            optimizationStartTime = performance.now();
+                            timerInterval = setInterval(() => {
+                                const elapsedSeconds = ((performance.now() - optimizationStartTime) / 1000);
+                                timerLabel.textContent = formatTime(elapsedSeconds);
+                            }, 100);
 
-            }
+                            // 5. --- PHASE 2: Start Worker ---
+                            try {
+                                currentWorker = new Worker(workerObjectURL);
+                            } catch (e) {
+                                 console.error("Error creating worker:", e);
+                                 statusEl.textContent = "Error: Could not create background worker."; statusEl.className = "failure";
+                                 progressContainer.style.display = "none"; if (timerInterval) clearInterval(timerInterval);
+                                 return;
+                            }
+
+                            // Handle messages FROM the worker
+                            currentWorker.onmessage = (event) => {
+                                const data = event.data;
+                                switch (data.type) {
+                                    case 'progressUpdate':
+                                        updateProgress(data.facultyIndex, allFaculty.length, data.facultyName, progressBar, progressLabel, data.combinations, comboLabel);
+                                        break;
+                                    case 'solutionUpdate':
+                                        if (data.score < progressState.bestScore) {
+                                            progressState.bestScore = data.score;
+                                            const newScheduleMap = new Map(data.schedule);
+                                            bestKnownSchedule = newScheduleMap; // <-- Save the new best schedule
+                                            
+                                            // Update the single-area display
+                                            singleScheduleArea.innerHTML = '<h2 style="color:#333; border-bottom:1px solid #ccc; padding-bottom:5px;">New Best Solution!</h2>';
+                                            renderSingleSchedule(bestKnownSchedule, allTimeSlots, allLectureSlots, singleScheduleArea);
+                                            
+                                            statusEl.textContent = `New best solution found! Conflicts: ${progressState.bestScore}. Still searching...`;
+                                            statusEl.className = "improved";
+                                        }
+                                        break;
+                                    case 'complete':
+                                        clearInterval(timerInterval); timerInterval = null;
+                                        const durationInSeconds = (performance.now() - optimizationStartTime) / 1000;
+                                        progressContainer.style.display = "none";
+                                        const finalCombinations = data.finalCombinations.toLocaleString();
+                                        progressState.bestScore = data.finalScore;
+
+                                        if (progressState.bestScore < bestHeuristic.numUnhappy) {
+                                            // Worker found a better solution than the initial heuristic
+                                            statusEl.textContent = `Search complete! Final best score: ${progressState.bestScore} conflicts. (Searched ${finalCombinations} combinations in ${durationInSeconds.toFixed(3)}s)`;
+                                            singleScheduleArea.innerHTML = '<h2 style="color:#333; border-bottom:1px solid #ccc; padding-bottom:5px;">Final Optimal Solution</h2>';
+                                        } else {
+                                            // The heuristic solution was already the best
+                                            statusEl.textContent = `Search complete. Heuristic was optimal. Score: ${progressState.bestScore} conflicts. (Searched ${finalCombinations} combinations in ${durationInSeconds.toFixed(3)}s)`;
+                                            singleScheduleArea.innerHTML = '<h2 style="color:#333; border-bottom:1px solid #ccc; padding-bottom:5px;">Heuristic Solution (Was Optimal)</h2>';
+                                        }
+                                        // Re-render the best schedule to update the title
+                                        renderSingleSchedule(bestKnownSchedule, allTimeSlots, allLectureSlots, singleScheduleArea);
+                                        
+                                        statusEl.className = "success";
+                                        currentWorker = null;
+                                        break;
+                                     case 'error':
+                                         console.error("Worker error:", data.message);
+                                         clearInterval(timerInterval); timerInterval = null;
+                                         progressContainer.style.display = "none";
+                                         statusEl.textContent = `Error during optimization: ${data.message}`;
+                                         statusEl.className = "failure";
+                                         currentWorker = null;
+                                         break;
+                                }
+                            };
+
+                             // Handle potential errors
+                            currentWorker.onerror = (error) => {
+                                 console.error("Worker initialization error:", error);
+                                 clearInterval(timerInterval); timerInterval = null;
+                                 progressContainer.style.display = "none";
+                                 statusEl.textContent = `Failed to start background optimizer: ${error.message}`;
+                                 statusEl.className = "failure";
+                                 currentWorker = null;
+                            };
+
+                            // Send data TO the worker
+                             currentWorker.postMessage({
+                                 allFaculty, allLectureSlots,
+                                 teacherAvailabilityMap: Array.from(teacherAvailabilityMap.entries()),
+                                 facultyPreferredSlots: transferableFacultyPreferredSlots,
+                                 initialBestScore: progressState.bestScore // Send the best of the 3 heuristics
+                             });
+                        }
 
 
             // --- SET UP NAVIGATION CLICK HANDLERS ---
@@ -586,21 +735,11 @@
                 navAvailability.classList.add("active");
             });
 
-            // --- SET UP RERUN BUTTON CLICK HANDLER ---
-            rerunButton.addEventListener("click", runScheduler); // Single button triggers combined run
 
-            // --- INITIAL RUN ON PAGE LOAD ---
-            runScheduler(); // No await needed, starts worker in background
-
-             // --- Clean up Blob URL when page closes (optional but good practice) ---
+             // --- Clean up Blob URL when page closes ---
              window.addEventListener('beforeunload', () => {
-                 if (workerObjectURL) {
-                     URL.revokeObjectURL(workerObjectURL);
-                     console.log("Worker Blob URL revoked.");
-                 }
-                  if (currentWorker) {
-                    currentWorker.terminate(); // Stop worker on page close
-                 }
+                 if (workerObjectURL) { URL.revokeObjectURL(workerObjectURL); }
+                 if (currentWorker) { currentWorker.terminate(); }
              });
 
         });
