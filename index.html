@@ -270,12 +270,27 @@
         .card-header { font-weight: bold; background-color: #f9f9f9; padding: 12px 15px; border-bottom: 1px solid #eee; color: #004a9c; }
         .card-body { padding: 15px; font-size: 1.0em; color: #444; line-height: 1.7; }
         .card-body strong { color: #000; } .card-body em { color: #888; }
+        
+        /* Unhappy status style */
         .card-body strong.unhappy {
             color: #B22222;
             background-color: #f8d7da;
             font-weight: bold;
             padding: 2px 4px;
             border-radius: 3px;
+        }
+
+        /* NEW: Course Tag Style (Small grey box) */
+        .course-tag {
+            display: inline-block;
+            background-color: #f0f0f0;
+            color: #555;
+            padding: 1px 6px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            margin-left: 8px;
+            border: 1px solid #ddd;
+            vertical-align: middle;
         }
 
         #multi-schedule-results-area { display: none; }
@@ -302,7 +317,7 @@
             transition: transform 0.1s linear;
         }
         details[open] > summary.heuristic-summary::before {
-            content: '▼ '; 
+            content: '▼ ';
         }
         div.heuristic-content {
             padding: 0 15px 15px 35px;
@@ -811,17 +826,7 @@
             });
         }
 
-        function getLabel(facultyName) {
-            const assignment = facultyAssignments.get(facultyName);
-            if (!assignment) return facultyName;
-            let label = assignment.course;
-            if (assignment.section && assignment.section !== "NA") {
-                label += ` [${assignment.section}]`;
-            }
-            return `${label} (${facultyName})`;
-        }
-
-        // --- Render Results (Safe with getLabel) ---
+        // --- Render Results (Corrected Format) ---
         function renderSingleSchedule(schedule, allTimeSlots, allLectureSlots, containerEl) {
             const assignedMap = new Map();
             for (const [f, a] of schedule.entries()) { assignedMap.set(a.lecture.id, { faculty: f, isHappy: a.isHappy }); }
@@ -833,8 +838,19 @@
                 let assignStr;
                 if (assign) {
                     const uhCls = assign.isHappy ? '' : 'class="unhappy"';
-                    // Use getLabel helper
-                    assignStr = `${rName}: <strong ${uhCls}>${getLabel(assign.faculty)}</strong>`;
+                    
+                    // Construct Display
+                    const assignment = facultyAssignments.get(assign.faculty);
+                    let courseDisplay = "";
+                    if (assignment) {
+                        let cText = assignment.course;
+                        if (assignment.section && assignment.section !== "NA") {
+                            cText += ` [${assignment.section}]`;
+                        }
+                        courseDisplay = `<span class="course-tag">${cText}</span>`;
+                    }
+
+                    assignStr = `${rName}: <strong ${uhCls}>${assign.faculty}</strong>${courseDisplay}`;
                 } else {
                     assignStr = `${rName}: <em>(Unassigned)</em>`;
                 }
@@ -863,8 +879,19 @@
                     let assignStr;
                     if (assign) {
                         const uhCls = assign.isHappy ? '' : 'class="unhappy"';
-                        // Use getLabel helper
-                        assignStr = `${rName}: <strong ${uhCls}>${getLabel(assign.faculty)}</strong>`;
+                        
+                        // Construct Display
+                        const assignment = facultyAssignments.get(assign.faculty);
+                        let courseDisplay = "";
+                        if (assignment) {
+                            let cText = assignment.course;
+                            if (assignment.section && assignment.section !== "NA") {
+                                cText += ` [${assignment.section}]`;
+                            }
+                            courseDisplay = `<span class="course-tag">${cText}</span>`;
+                        }
+
+                        assignStr = `${rName}: <strong ${uhCls}>${assign.faculty}</strong>${courseDisplay}`;
                     } else { assignStr = `${rName}: <em>(Unassigned)</em>`; }
                     tsGroup.get(l.timeSlot).push(assignStr);
                 }
