@@ -703,6 +703,7 @@
             try {
                 const stored = localStorage.getItem(COURSE_STORAGE_KEY);
                 courses = stored ? JSON.parse(stored) : DEFAULT_COURSES;
+                if (courses.length === 0) courses = DEFAULT_COURSES; // fallback
             } catch { courses = DEFAULT_COURSES; }
             renderCourseList();
             updateSchedulerUI();
@@ -766,6 +767,7 @@
         function loadAssignments() {
             try {
                 const stored = localStorage.getItem(FACULTY_ASSIGNMENT_KEY);
+                // Use DEFAULT if storage is empty
                 const dataToLoad = stored ? JSON.parse(stored) : DEFAULT_ASSIGNMENTS;
                 facultyAssignments = new Map(dataToLoad);
             } catch { facultyAssignments = new Map(DEFAULT_ASSIGNMENTS); }
@@ -863,7 +865,8 @@
             const generateBtn = document.getElementById("generate-btn");
             const assignTable = document.querySelector(".assignment-table");
 
-            loadAssignments();
+            // Ensure we have the latest assignments
+            if (facultyAssignments.size === 0) loadAssignments();
 
             let facultyList = [];
             let isFullData = false;
@@ -1148,6 +1151,11 @@
         document.addEventListener("DOMContentLoaded", function() {
             loadCourses();
             loadAssignments();
+            
+            // Force re-run to ensure defaults are picked up if storage was empty
+            if(courses.length === 0) loadCourses();
+            if(facultyAssignments.size === 0) loadAssignments();
+
             updateSchedulerUI(); // Ensure UI updates after assignments load
             
             try { const blob = new Blob([workerCode], { type: 'application/javascript' }); workerObjectURL = URL.createObjectURL(blob); } catch(e) { console.error(e); }
