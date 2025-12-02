@@ -37,6 +37,7 @@
         .btn-add-assign { background: #28a745; color: #fff; border: none; border-radius: 4px; cursor: pointer; padding: 6px 12px; font-size: 0.9em; }
         #generate-btn { display: block; width: 100%; padding: 15px; background-color: #28a745; color: white; border: none; border-radius: 5px; font-size: 1.2em; cursor: pointer; transition: background-color 0.2s; }
         #generate-btn:hover { background-color: #218838; }
+        #generate-btn:disabled { background-color: #ccc; cursor: not-allowed; opacity: 0.6; }
         #course-entry-container { background-color: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.05); }
         #course-form { display: grid; grid-template-columns: 1fr 120px; gap: 10px; margin-bottom: 20px; align-items: center; border-bottom: 1px dashed #eee; padding-bottom: 15px; }
         #course-form input[type="text"] { padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1.0em; }
@@ -138,6 +139,23 @@
             cursor: pointer;
             font-weight: bold;
         }
+        
+        #assignment-message {
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 5px;
+            display: none;
+        }
+        #assignment-message.info-msg {
+            background-color: #e2e3e5;
+            color: #383d41;
+            border: 1px solid #d6d8db;
+        }
+        #assignment-message.empty-msg {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+        }
     </style>
 </head>
 <body>
@@ -195,6 +213,7 @@
 
         <div id="assignment-area">
             <h3>Assign Courses to Faculty</h3>
+            <div id="assignment-message"></div>
             <p style="margin-bottom: 15px; color: #555;">Match each faculty member to one or more courses.</p>
             <table class="assignment-table">
                 <thead>
@@ -656,13 +675,27 @@
             const uploadEl = document.getElementById("upload-container");
             const assignArea = document.getElementById("assignment-area");
             const hardcodeSec = document.getElementById("hardcode-section");
+            const msgEl = document.getElementById("assignment-message");
 
             if (courses.length > 0) {
                 warningEl.style.display = 'none';
                 uploadEl.style.display = 'block';
+                
+                // Logic updated to show assignment area if assignments exist (saved) or data loaded
                 if (currentData) {
                     assignArea.style.display = 'block';
                     hardcodeSec.style.display = 'block';
+                    msgEl.style.display = 'none';
+                    renderAssignmentTable(); // Ensure table is rendered if data becomes available
+                } else {
+                    // Check if saved assignments exist
+                    if (facultyAssignments.size > 0) {
+                        assignArea.style.display = 'block'; // Show container so message is visible
+                        renderAssignmentTable(); // Will render message-only view
+                    } else {
+                        assignArea.style.display = 'none';
+                        hardcodeSec.style.display = 'none';
+                    }
                 }
             } else {
                 warningEl.style.display = 'block';
@@ -762,9 +795,58 @@
         function renderAssignmentTable() {
             const tbody = document.getElementById("assignment-table-body");
             tbody.innerHTML = "";
-            if (!currentData || !currentData.allFaculty) return;
+            const msgEl = document.getElementById("assignment-message");
+            const hardcodeSec = document.getElementById("hardcode-section");
+            const generateBtn = document.getElementById("generate-btn");
+            const assignTable = document.querySelector(".assignment-table");
+
             loadAssignments();
-            currentData.allFaculty.forEach((fac) => {
+
+            let facultyList = [];
+            let isFullData = false;
+
+            if (currentData && currentData.allFaculty) {
+                facultyList = currentData.allFaculty;
+                isFullData = true;
+            } else if (facultyAssignments.size > 0) {
+                facultyList = Array.from(facultyAssignments.keys()).sort();
+            }
+
+            if (facultyList.length === 0 && !isFullData) {
+                // Nothing to show
+                document.getElementById("assignment-area").style.display = "none";
+                hardcodeSec.style.display = "none";
+                return;
+            }
+
+            document.getElementById("assignment-area").style.display = "block";
+            msgEl.style.display = "block";
+
+            if (isFullData) {
+                if (facultyAssignments.size > 0) {
+                    msgEl.innerHTML = "File loaded. Displaying merged saved assignments.";
+                    msgEl.className = "info-msg";
+                } else {
+                    msgEl.innerHTML = "File loaded. Ready to assign.";
+                    msgEl.className = "info-msg";
+                }
+                hardcodeSec.style.display = "block";
+                generateBtn.disabled = false;
+                generateBtn.style.opacity = "1";
+                generateBtn.title = "";
+                assignTable.style.display = "table";
+            } else {
+                msgEl.innerHTML = "Displaying saved information, upload file to add new data";
+                msgEl.className = "empty-msg";
+                hardcodeSec.style.display = "none"; // Cannot hardcode without time slots
+                generateBtn.disabled = true;
+                generateBtn.style.opacity = "0.5";
+                generateBtn.title = "Upload file to enable generation";
+                // Show table to edit existing
+                assignTable.style.display = "table";
+            }
+
+            facultyList.forEach((fac) => {
                 const tr = document.createElement("tr");
                 tr.innerHTML = `<td><strong>${fac}</strong></td><td id="assign-cell-${fac.replace(/\s/g, '-')}" data-faculty-name="${fac}"><div class="assign-container"></div><button class="btn-add-assign" onclick="addAssignmentRowToCell(this)">+ Add Course</button></td>`;
                 tbody.appendChild(tr);
@@ -774,10 +856,11 @@
                     existingAssignments.forEach(assignment => { container.appendChild(createAssignmentRow(assignment.course, assignment.section)); });
                 } else { container.appendChild(createAssignmentRow()); }
             });
-            document.getElementById("assignment-area").style.display = "block";
-            document.getElementById("hardcode-section").style.display = "block";
-            collectAndSaveAssignments();
-            renderHardcodeSection();
+            
+            // Only render hardcode options if full data (need time slots)
+            if(isFullData) {
+                renderHardcodeSection();
+            }
         }
 
         // --- NEW: Render Hardcode Section ---
@@ -1002,6 +1085,8 @@
         document.addEventListener("DOMContentLoaded", function() {
             loadCourses();
             loadAssignments();
+            updateSchedulerUI(); // Ensure UI updates after assignments load
+            
             try { const blob = new Blob([workerCode], { type: 'application/javascript' }); workerObjectURL = URL.createObjectURL(blob); } catch(e) { console.error(e); }
             document.getElementById("add-course-btn").addEventListener('click', addCourse);
             document.getElementById("course-name-input").addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addCourse(); } });
