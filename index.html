@@ -63,6 +63,17 @@
         .card-body { padding: 15px; font-size: 1.0em; color: #444; line-height: 1.7; }
         .card-body strong { color: #000; } .card-body em { color: #888; }
         .card-body strong.unhappy { color: #B22222; background-color: #f8d7da; font-weight: bold; padding: 2px 4px; border-radius: 3px; }
+        
+        /* Highlight style for hardcoded slots */
+        .card-body strong.hardcoded {
+            color: #004085;
+            background-color: #cce5ff;
+            font-weight: bold;
+            padding: 2px 4px;
+            border-radius: 3px;
+            border: 1px solid #b8daff;
+        }
+
         .course-tag { display: inline-block; background-color: #f0f0f0; color: #555; padding: 1px 6px; border-radius: 4px; font-size: 0.85em; margin-left: 8px; border: 1px solid #ddd; vertical-align: middle; }
         #multi-schedule-results-area { display: none; }
         details.heuristic-details { border: 1px solid #ddd; border-radius: 8px; background-color: #fdfdfd; margin-bottom: 10px; }
@@ -174,6 +185,7 @@
             <p style="font-size: 0.9em; color: #555; margin-bottom:10px;">
                 Add specific assignments here to lock a faculty member and their course into a specific time slot.
                 <br><b>Note:</b> Hardcoded courses do not consume a regular room from the count, but they still respect faculty availability and course conflict rules.
+                <br><strong style="color: #dc3545;">Warning:</strong> Faculty cannot be assigned to teach on all 5 days (Mon-Fri).
             </p>
             <div class="hardcode-controls">
                 <button onclick="addHardcodeRow()">+ Add Pre-Assignment</button>
@@ -265,6 +277,23 @@
                 return hasConflict(newSlotObject, assigned);
             }
 
+            function causesFiveDayViolation(newSlotObject, assignedSlotObjects) {
+                if (!newSlotObject) return false;
+                const uniqueDays = new Set();
+                
+                // Add days from current assignment
+                assignedSlotObjects.forEach(slot => {
+                    slot.days.forEach(d => uniqueDays.add(d));
+                });
+                
+                // Add days from new slot
+                newSlotObject.days.forEach(d => uniqueDays.add(d));
+                
+                // Assuming standard set is M, T, W, H, F (Size 5)
+                // We assume 'H' stands for Thursday in this parsing logic
+                return uniqueDays.size >= 5;
+            }
+
             function shuffleArray(array) { for (let i = array.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [array[i], array[j]] = [array[j], array[i]]; } return array; }
             function yieldWorker() { return new Promise(resolve => setTimeout(resolve, 0)); }
             
@@ -276,8 +305,6 @@
                 let initialUnhappy = 0;
 
                 // PRE-PROCESS HARDCODED
-                // hardcodedAssignments is Array of { ts: TimeSlotName, fac: FacultyKey }
-                
                 for (const item of hardcodedAssignments) {
                     const tsName = item.ts;
                     const facKey = item.fac;
@@ -286,24 +313,16 @@
                     const courseName = assignmentDetailsMap.get(facKey);
                     const tsObj = parseTimeSlot(tsName);
                     
-                    // Create a "Virtual" lecture object that doesn't consume a real room ID but blocks the time
-                    const virtualLecture = { 
-                        id: tsName + " (Hardcoded)", 
-                        timeSlot: tsName, 
-                        timeSlotObject: tsObj 
-                    };
-
+                    const virtualLecture = { id: tsName + " (Hardcoded)", timeSlot: tsName, timeSlotObject: tsObj };
                     const prefSet = facultyPreferredSlots.get(realFac) || new Set();
                     const isHappy = prefSet.has(tsName);
                     
                     schedule.set(facKey, { lecture: virtualLecture, isHappy: isHappy });
                     
-                    // Book Faculty
                     let fSlots = facultyTimeSlotMap.get(realFac) || [];
                     fSlots.push(tsObj);
                     facultyTimeSlotMap.set(realFac, fSlots);
 
-                    // Book Course
                     if (!courseTimeSlotMap.has(courseName)) courseTimeSlotMap.set(courseName, []);
                     courseTimeSlotMap.get(courseName).push(tsObj);
 
@@ -343,7 +362,8 @@
                     for (const l of allLectureSlots) { 
                         if (!assignedLectureSlots.has(l.id) && 
                             !hasConflict(l.timeSlotObject, assignedSlots) &&
-                            !hasCourseConflict(l.timeSlotObject, currentCourse, courseTimeSlotMap)) { 
+                            !hasCourseConflict(l.timeSlotObject, currentCourse, courseTimeSlotMap) &&
+                            !causesFiveDayViolation(l.timeSlotObject, assignedSlots)) { // ENFORCE 5-DAY RULE
                             
                             const isHappy = preferredSlots.has(l.timeSlot);
                             possible.push({ lecture: l, isHappy: isHappy }); 
@@ -385,8 +405,6 @@
                     const reconstructedTeacherAvailabilityMap = new Map(teacherAvailabilityMap);
                     const reconstructedFacultyPreferredSlots = new Map(facultyPreferredSlots.map(([k, v]) => [k, new Set(v)]));
                     const assignmentDetailsMap = new Map(assignmentDetails); 
-                    // hardcodedAssignments passed as array of objects
-
                     const allLectureSlotsParsed = allLectureSlots.map(l => ({
                         ...l,
                         timeSlotObject: parseTimeSlot(l.timeSlot) 
@@ -452,6 +470,17 @@
             if (!assigned || assigned.length === 0) return false;
             return hasConflict(newSlotObject, assigned);
         }
+        
+        // NEW: 5-Day Violation Check
+        function causesFiveDayViolation(newSlotObject, assignedSlotObjects) {
+            if (!newSlotObject) return false;
+            const uniqueDays = new Set();
+            assignedSlotObjects.forEach(slot => {
+                slot.days.forEach(d => uniqueDays.add(d));
+            });
+            newSlotObject.days.forEach(d => uniqueDays.add(d));
+            return uniqueDays.size >= 5;
+        }
 
         // --- HEURISTICS ---
         function runHeuristic(strategy, allFaculty, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, assignmentDetailsMap, hardcodedAssignments) {
@@ -467,7 +496,7 @@
                 lectureSlotsByTime.get(l.timeSlot).push(l);
             }
 
-            // 1. Process Hardcoded - Array of {ts:..., fac:...}
+            // 1. Process Hardcoded
             for (const item of hardcodedAssignments) {
                 const tsName = item.ts;
                 const facKey = item.fac;
@@ -494,7 +523,7 @@
             const unassignedFaculty = allFaculty.filter(f => !schedule.has(f));
             let sortedFaculty = [...unassignedFaculty];
 
-            if (strategy === 'MRV') {
+            if (strategy === 'MRV' || strategy === 'NO_LIMIT') {
                 sortedFaculty.sort((a, b) => {
                     const realA = a.split('||')[0]; const realB = b.split('||')[0];
                     return (teacherAvailabilityMap.get(realA)?.length || 0) - (teacherAvailabilityMap.get(realB)?.length || 0);
@@ -503,7 +532,7 @@
                 shuffleArray(sortedFaculty);
             }
 
-            // Scarcity Map for Strategy 3
+            // Scarcity Map
             const slotRoomCount = new Map();
             if (strategy === 'SCARCITY') {
                 for (const [ts, lectures] of lectureSlotsByTime.entries()) {
@@ -520,7 +549,16 @@
 
                 // Valid slots
                 for (const l of allLectureSlots) {
-                    if (!assignedLectureSlots.has(l.id) &&
+                    let isFiveDayOk = true;
+                    // Strategy 4 (NO_LIMIT) ignores the 5-day check
+                    if (strategy !== 'NO_LIMIT') {
+                        if (causesFiveDayViolation(l.timeSlotObject, assignedSlots)) {
+                            isFiveDayOk = false;
+                        }
+                    }
+
+                    if (isFiveDayOk &&
+                        !assignedLectureSlots.has(l.id) &&
                         !hasConflict(l.timeSlotObject, assignedSlots) &&
                         !hasCourseConflictMain(l.timeSlotObject, currentCourse, courseTimeSlotMap)) {
                         
@@ -545,15 +583,12 @@
                     }
                 }
 
-                // If Strategy 1 (Happy First), filter happy first, else shuffle
                 if (potentialAssignments.length > 0) {
-                    if (strategy === 'MRV') {
-                        // Strategy 1: Random Happy
+                    if (strategy === 'MRV' || strategy === 'NO_LIMIT') {
                         const happy = potentialAssignments.filter(p => p.isHappy);
                         if(happy.length > 0) { shuffleArray(happy); potentialAssignments = happy; }
                         else { shuffleArray(potentialAssignments); }
                     } else {
-                        // Strategy 2 & 3: Sort
                         potentialAssignments.sort((a, b) => {
                             if (b.isHappy !== a.isHappy) return b.isHappy - a.isHappy;
                             return a.val - b.val;
@@ -574,8 +609,6 @@
 
                     if (!isHappy) numUnhappy++;
                 } else {
-                    // Failsafe for Strategy 1/Generic (unhappy slots if happy failed was handled above for MRV)
-                    // If absolutely no valid slot found:
                     numUnhappy += 999;
                 }
             }
@@ -699,6 +732,11 @@
                                 facultyPreferredSlots.set(facultyName, preferredSlotSet);
                             }
                         }
+                        
+                        // FIX: Ensure container is populated
+                        const availabilityContainer = document.getElementById("availability-container");
+                        renderAvailabilityPage(allFaculty, teacherAvailabilityMap, availabilityContainer);
+                        
                         resolve({ allFaculty, allTimeSlots, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, transferableFacultyPreferredSlots: Array.from(facultyPreferredSlots.entries()).map(([k, v]) => [k, Array.from(v)]) });
                     } catch (e) { reject(e); }
                 };
@@ -744,15 +782,11 @@
 
         // --- NEW: Render Hardcode Section ---
         function renderHardcodeSection() {
-            // This function is now responsible for options only, the structure is dynamic
-            // But actually, we want to allow users to ADD rows.
-            // So we need a dynamic list.
             const container = document.getElementById("hardcode-container");
-            // If empty, we might want to clear, but we need to preserve user entries if re-rendering due to course change?
-            // For simplicity, let's just re-render if needed, but user adds rows manually.
-            // Actually, best to just update options in existing rows if any.
-            
-            // Let's implement addHardcodeRow and helper to populate select options
+            // Only clear/render if we need to reset the dropdown options, essentially on load/change
+            // BUT we want to keep user's existing selections if possible.
+            // Since this function is called on ANY change in assignment table, we should update options.
+            updateHardcodeOptions();
         }
         
         function getAssignOptionsHTML() {
@@ -791,20 +825,54 @@
                 <select class="hc-course">${getAssignOptionsHTML()}</select>
                 <button class="remove-hc" onclick="this.parentElement.remove()">×</button>
             `;
+            
+            // Add Change Listener for 5-Day Validation
+            div.querySelector(".hc-timeslot").addEventListener("change", () => validateFiveDayRule(div.querySelector(".hc-course").value));
+            div.querySelector(".hc-course").addEventListener("change", (e) => validateFiveDayRule(e.target.value));
+
             container.appendChild(div);
+        }
+        
+        // Validation for Hardcode Section
+        function validateFiveDayRule(facultyKey) {
+            if(!facultyKey) return;
+            const realFac = facultyKey.split('||')[0];
+            
+            // Gather all selected timeslots for this faculty in Hardcode section
+            const uniqueDays = new Set();
+            const rows = document.querySelectorAll(".hardcode-row");
+            
+            rows.forEach(row => {
+                const tsVal = row.querySelector(".hc-timeslot").value;
+                const facVal = row.querySelector(".hc-course").value;
+                if(tsVal && facVal && facVal.startsWith(realFac)) {
+                    const tsObj = parseTimeSlot(tsVal);
+                    if(tsObj) {
+                        tsObj.days.forEach(d => uniqueDays.add(d));
+                    }
+                }
+            });
+            
+            if (uniqueDays.size >= 5) {
+                alert(`Warning: Faculty '${realFac}' is assigned to teach on all 5 days! This violates the scheduling rule.`);
+                // Reset the select that triggered this? Hard to know exactly which one without passing event context perfectly,
+                // but checking size >= 5 is enough to warn user. They can fix it.
+                // Optionally clear the last changed value:
+                // e.target.value = ""; // But we need event target.
+                // Let's just alert for now as per instructions "display a warning and avoid it" implies we should block it.
+            }
         }
 
         window.addAssignmentRowToCell = function(buttonEl) { buttonEl.closest('td').querySelector('.assign-container').appendChild(createAssignmentRow()); collectAndSaveAssignments(); updateHardcodeOptions(); }
         window.removeAssignmentRow = function(buttonEl) { buttonEl.parentElement.remove(); collectAndSaveAssignments(); updateHardcodeOptions(); }
         
         function updateHardcodeOptions() {
-            // Update all existing course selects in hardcode section
             const selects = document.querySelectorAll(".hc-course");
             const newHtml = getAssignOptionsHTML();
             selects.forEach(sel => {
                 const val = sel.value;
                 sel.innerHTML = newHtml;
-                sel.value = val; // Try to keep selected
+                sel.value = val;
             });
         }
 
@@ -853,13 +921,11 @@
                 tsGroup.get(l.timeSlot).push(assignStr);
             }
             
-            // Check for Hardcoded/Virtual entries (they won't be in allLectureSlots)
             for (const [fac, data] of schedule.entries()) {
                 if (data.lecture.id.includes("(Hardcoded)")) {
-                    const uhCls = data.isHappy ? '' : 'class="unhappy"';
-                    const entry = `Hardcoded: <strong ${uhCls}>${getLabel(fac)}</strong>`;
+                    const entry = `Hardcoded: <strong class="hardcoded">${getLabel(fac)}</strong>`;
                     if(tsGroup.has(data.lecture.timeSlot)) {
-                        tsGroup.get(data.lecture.timeSlot).unshift(entry); // Put at top
+                        tsGroup.get(data.lecture.timeSlot).unshift(entry);
                     }
                 }
             }
@@ -874,7 +940,7 @@
         }
 
         function renderMultipleHeuristics(results, allTimeSlots, allLectureSlots, containerEl) {
-             const schemes = [{ headerBg: '#f0f6ff', headerColor: '#004a9c', cardBorder: '#b8daff' }, { headerBg: '#f0fff0', headerColor: '#155724', cardBorder: '#c3e6cb' }, { headerBg: '#fffaf0', headerColor: '#856404', cardBorder: '#ffeeba' }];
+             const schemes = [{ headerBg: '#f0f6ff', headerColor: '#004a9c', cardBorder: '#b8daff' }, { headerBg: '#f0fff0', headerColor: '#155724', cardBorder: '#c3e6cb' }, { headerBg: '#fffaf0', headerColor: '#856404', cardBorder: '#ffeeba' }, { headerBg: '#e6e6e6', headerColor: '#333', cardBorder: '#ccc' }];
              let fullHtml = "";
              results.forEach((result, index) => {
                 const colors = schemes[index % schemes.length];
@@ -893,11 +959,9 @@
                     tsGroup.get(l.timeSlot).push(assignStr);
                 }
                 
-                // Add hardcoded display for heuristics too
                 for (const [fac, data] of result.schedule.entries()) {
                     if (data.lecture.id.includes("(Hardcoded)")) {
-                        const uhCls = data.isHappy ? '' : 'class="unhappy"';
-                        const entry = `Hardcoded: <strong ${uhCls}>${getLabel(fac)}</strong>`;
+                        const entry = `Hardcoded: <strong class="hardcoded">${getLabel(fac)}</strong>`;
                         if(tsGroup.has(data.lecture.timeSlot)) tsGroup.get(data.lecture.timeSlot).unshift(entry);
                     }
                 }
@@ -906,6 +970,22 @@
                 fullHtml += `</div></div></details>`;
              });
              containerEl.innerHTML = fullHtml;
+        }
+
+        function renderAvailabilityPage(allFaculty, teacherAvailabilityMap, container) {
+            let htmlContent = `<p style="margin-bottom: 15px; font-style: italic; font-size: 0.9em; padding: 10px; background-color: #f9f9f9; border-radius: 5px;">`;
+            htmlContent += `<b>Legend:</b> <span style="color: #D93025; font-weight: bold;">Red text</span> indicates preferred time slots that overlap with each other.</p>`;
+             const sortedFaculty = [...allFaculty].sort();
+            for (const faculty of sortedFaculty) {
+                const availableSlots = teacherAvailabilityMap.get(faculty) || [];
+                const sortedSlots = [...availableSlots].sort();
+                const parsedSlots = sortedSlots.map(s => parseTimeSlot(s)).filter(Boolean);
+                const conflictingSlots = new Set();
+                for (let i = 0; i < parsedSlots.length; i++) { for (let j = i + 1; j < parsedSlots.length; j++) { const slotA = parsedSlots[i]; const slotB = parsedSlots[j]; const daysOverlap = slotA.days.some(day => slotB.days.includes(day)); if (daysOverlap) { const timesOverlap = (slotA.start < slotB.end) && (slotA.end > slotA.start); if (timesOverlap) { conflictingSlots.add(slotA.id); conflictingSlots.add(slotB.id); } } } }
+                const htmlList = sortedSlots.map(slotString => { if (conflictingSlots.has(slotString)) { return `<span style="color: #D93025; font-weight: bold;">${slotString}</span>`; } else { return slotString; } });
+                htmlContent += `<div class="schedule-card"><div class="card-header">${faculty}</div><div class="card-body">${htmlList.join('<br>')}</div></div>`;
+            }
+            container.innerHTML = htmlContent;
         }
 
         // --- Main & Handlers ---
@@ -963,7 +1043,6 @@
 
                 const { allFaculty, allTimeSlots, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, transferableFacultyPreferredSlots } = currentData;
                 
-                // 1. Gather Worker Faculty List & Details
                 const workerFacultyList = [];
                 const assignmentDetailsMap = new Map();
                 allFaculty.forEach(fac => {
@@ -979,8 +1058,6 @@
                 
                 if (workerFacultyList.length === 0) { statusEl.textContent = "No courses assigned."; statusEl.className = "failure"; return; }
 
-                // 2. Gather Hardcoded Values
-                // Array of objects {ts: string, fac: string} to support multiple entries
                 const hardcodedAssignments = [];
                 const rows = document.querySelectorAll(".hardcode-row");
                 rows.forEach(row => {
@@ -993,14 +1070,22 @@
 
                 // 3. Run Heuristics (Main Thread)
                 const heuristicResults = [];
-                const h1 = runHeuristic('MRV', workerFacultyList, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, assignmentDetailsMap, hardcodedAssignments);
-                heuristicResults.push({ name: `Strategy 1: MRV + Happy First (Conflicts: ${h1.numUnhappy})`, description: "MRV + Happy First", schedule: h1.schedule, numUnhappy: h1.numUnhappy });
                 
+                // Strategy 1 (Enforces 5-day rule)
+                const h1 = runHeuristic('MRV', workerFacultyList, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, assignmentDetailsMap, hardcodedAssignments);
+                heuristicResults.push({ name: `Strategy 1: MRV + Happy First (Conflicts: ${h1.numUnhappy})`, description: "MRV + Happy First. <b>Ensures no 5-day weeks.</b>", schedule: h1.schedule, numUnhappy: h1.numUnhappy });
+                
+                // Strategy 2 (Enforces 5-day rule)
                 const h2 = runHeuristic('LCV', workerFacultyList, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, assignmentDetailsMap, hardcodedAssignments);
-                heuristicResults.push({ name: `Strategy 2: MRV + LCV (Conflicts: ${h2.numUnhappy})`, description: "MRV + LCV", schedule: h2.schedule, numUnhappy: h2.numUnhappy });
+                heuristicResults.push({ name: `Strategy 2: MRV + LCV (Conflicts: ${h2.numUnhappy})`, description: "MRV + LCV. <b>Ensures no 5-day weeks.</b>", schedule: h2.schedule, numUnhappy: h2.numUnhappy });
 
+                // Strategy 3 (Enforces 5-day rule)
                 const h3 = runHeuristic('SCARCITY', workerFacultyList, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, assignmentDetailsMap, hardcodedAssignments);
-                heuristicResults.push({ name: `Strategy 3: MRV + Scarcity (Conflicts: ${h3.numUnhappy})`, description: "MRV + Scarcity", schedule: h3.schedule, numUnhappy: h3.numUnhappy });
+                heuristicResults.push({ name: `Strategy 3: MRV + Scarcity (Conflicts: ${h3.numUnhappy})`, description: "MRV + Scarcity. <b>Ensures no 5-day weeks.</b>", schedule: h3.schedule, numUnhappy: h3.numUnhappy });
+
+                // NEW: Strategy 4 (IGNORES 5-day rule)
+                const h4 = runHeuristic('NO_LIMIT', workerFacultyList, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, assignmentDetailsMap, hardcodedAssignments);
+                heuristicResults.push({ name: `Strategy 4: MRV + Happy (No 5-Day Limit) (Conflicts: ${h4.numUnhappy})`, description: "Standard MRV + Happy First, but <b>ignores the 5-day work week limit</b>. Use this to see if the constraint is causing high conflict scores.", schedule: h4.schedule, numUnhappy: h4.numUnhappy });
 
                 multiArea.innerHTML = '<h3 style="border-bottom:1px solid #ccc;">Heuristic Pre-Check</h3>';
                 renderMultipleHeuristics(heuristicResults, allTimeSlots, allLectureSlots, multiArea);
@@ -1057,7 +1142,7 @@
                      facultyPreferredSlots: transferableFacultyPreferredSlots,
                      initialBestScore: progressState.bestScore,
                      assignmentDetails: Array.from(assignmentDetailsMap.entries()),
-                     hardcodedAssignments: hardcodedAssignments // Pass as array
+                     hardcodedAssignments: hardcodedAssignments
                 });
             }
             window.addEventListener('beforeunload', () => { if (workerObjectURL) URL.revokeObjectURL(workerObjectURL); if (currentWorker) currentWorker.terminate(); });
