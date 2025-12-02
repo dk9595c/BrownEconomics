@@ -66,12 +66,12 @@
         .card-body strong.unhappy { color: #B22222; background-color: #f8d7da; font-weight: bold; padding: 2px 4px; border-radius: 3px; }
         
         /* Highlight style for hardcoded slots */
-        .card-body strong.hardcoded {
-            color: #004085;
-            background-color: #cce5ff;
-            font-weight: bold;
-            padding: 2px 4px;
-            border-radius: 3px;
+        .card-body strong.hardcoded { 
+            color: #004085; 
+            background-color: #cce5ff; 
+            font-weight: bold; 
+            padding: 2px 4px; 
+            border-radius: 3px; 
             border: 1px solid #b8daff;
         }
 
@@ -576,8 +576,8 @@
                         }
                     }
 
-                    if (isFiveDayOk &&
-                        !assignedLectureSlots.has(l.id) &&
+                    if (isFiveDayOk && 
+                        !assignedLectureSlots.has(l.id) && 
                         !hasConflict(l.timeSlotObject, assignedSlots) &&
                         !hasCourseConflictMain(l.timeSlotObject, currentCourse, courseTimeSlotMap)) {
                         
@@ -609,8 +609,8 @@
                         else { shuffleArray(potentialAssignments); }
                     } else {
                         potentialAssignments.sort((a, b) => {
-                            if (b.isHappy !== a.isHappy) return b.isHappy - a.isHappy;
-                            return a.val - b.val;
+                            if (b.isHappy !== a.isHappy) return b.isHappy - a.isHappy; 
+                            return a.val - b.val; 
                         });
                     }
 
@@ -695,18 +695,55 @@
             ["F50_Zimmerman",[{"course":"ec-1","section":"NA"}]]
         ];
 
+        // *** DEFAULT TIME SLOTS & AVAILABILITY (For Mock Data) ***
+        // Without file upload, we can't get these from Excel.
+        // I will create MOCK data so the scheduler can actually run immediately.
+        const MOCK_TIME_SLOTS = [
+            { name: "MWF 9-10", rooms: 5 }, { name: "MWF 10-11", rooms: 5 }, { name: "MWF 11-12", rooms: 5 }, 
+            { name: "MWF 1-2", rooms: 5 }, { name: "MWF 2-3", rooms: 5 },
+            { name: "TTh 9-10:30", rooms: 5 }, { name: "TTh 10:30-12", rooms: 5 }, { name: "TTh 1:30-3", rooms: 5 }
+        ];
+        
+        // Mock everyone is available everywhere unless constrained
+        function getMockAvailability(facultyList, timeSlots) {
+            const availability = new Map();
+            const prefs = new Map();
+            
+            facultyList.forEach(fac => {
+                // Make them available for all slots for demo
+                const slots = timeSlots.map(ts => ts.name);
+                availability.set(fac, slots);
+                prefs.set(fac, new Set(slots)); 
+            });
+            return { teacherAvailabilityMap: availability, facultyPreferredSlots: prefs };
+        }
+        
+        function getMockLectureSlots() {
+             const allLectureSlots = [];
+             MOCK_TIME_SLOTS.forEach(ts => {
+                 const parsedSlot = parseTimeSlot(ts.name);
+                 if(parsedSlot) {
+                     for(let i=1; i<=ts.rooms; i++) {
+                         allLectureSlots.push({ id: `${ts.name} (Room ${i})`, timeSlot: ts.name, timeSlotObject: parsedSlot });
+                     }
+                 }
+             });
+             return allLectureSlots;
+        }
+
+        // --- END HARDCODED DEFAULTS ---
+
         let courses = [];
-        let currentData = null;
+        let currentData = null; 
         let facultyAssignments = new Map();
         
         function loadCourses() {
-            try {
+            try { 
                 const stored = localStorage.getItem(COURSE_STORAGE_KEY);
                 courses = stored ? JSON.parse(stored) : DEFAULT_COURSES;
-                if (courses.length === 0) courses = DEFAULT_COURSES; // fallback
+                if (courses.length === 0) courses = DEFAULT_COURSES; 
             } catch { courses = DEFAULT_COURSES; }
             renderCourseList();
-            updateSchedulerUI();
         }
         function saveCourses() { localStorage.setItem(COURSE_STORAGE_KEY, JSON.stringify(courses)); updateSchedulerUI(); }
         function renderCourseList() {
@@ -737,37 +774,37 @@
             const hardcodeSec = document.getElementById("hardcode-section");
             const msgEl = document.getElementById("assignment-message");
 
-            if (courses.length > 0) {
-                warningEl.style.display = 'none';
-                uploadEl.style.display = 'block';
-                
-                // Logic updated to show assignment area if assignments exist (saved) or data loaded
-                if (currentData) {
-                    assignArea.style.display = 'block';
-                    hardcodeSec.style.display = 'block';
-                    msgEl.style.display = 'none';
-                    renderAssignmentTable();
+            // Courses always exist now due to defaults
+            warningEl.style.display = 'none';
+            uploadEl.style.display = 'block';
+            
+            // Show Assignment Area immediately if defaults exist
+            if (currentData || facultyAssignments.size > 0) {
+                assignArea.style.display = 'block';
+                // If currentData is null (no file), we can still show saved assignments but warning about file
+                if (!currentData) {
+                    msgEl.innerHTML = "Displaying hardcoded assignments. <b>Upload file to add new data</b> or click Generate to run with Mock Data.";
+                    msgEl.className = "empty-msg";
+                    msgEl.style.display = "block";
+                    
+                    // ENABLE hardcode section using MOCK data
+                    hardcodeSec.style.display = "block";
+                    document.getElementById("generate-btn").disabled = false;
+                    document.getElementById("generate-btn").style.opacity = "1";
+                    renderAssignmentTable(); 
                 } else {
-                    // Check if saved assignments exist
-                    if (facultyAssignments.size > 0) {
-                        assignArea.style.display = 'block'; // Show container so message is visible
-                        renderAssignmentTable(); // Will render message-only view
-                    } else {
-                        assignArea.style.display = 'none';
-                        hardcodeSec.style.display = 'none';
-                    }
+                    hardcodeSec.style.display = "block";
+                    msgEl.style.display = 'none';
+                    renderAssignmentTable(); 
                 }
             } else {
-                warningEl.style.display = 'block';
-                uploadEl.style.display = 'none';
                 assignArea.style.display = 'none';
                 hardcodeSec.style.display = 'none';
             }
         }
         function loadAssignments() {
-            try {
+            try { 
                 const stored = localStorage.getItem(FACULTY_ASSIGNMENT_KEY);
-                // Use DEFAULT if storage is empty
                 const dataToLoad = stored ? JSON.parse(stored) : DEFAULT_ASSIGNMENTS;
                 facultyAssignments = new Map(dataToLoad);
             } catch { facultyAssignments = new Map(DEFAULT_ASSIGNMENTS); }
@@ -854,6 +891,11 @@
             div.innerHTML = `<select class="course-select">${options}</select><select class="section-select">${sectionOptions}</select><button class="btn-remove-assign" onclick="removeAssignmentRow(this)">×</button>`;
             div.querySelector('.course-select').addEventListener('change', () => { collectAndSaveAssignments(); renderHardcodeSection(); });
             div.querySelector('.section-select').addEventListener('change', () => { collectAndSaveAssignments(); renderHardcodeSection(); });
+            
+            // Pre-select if passed
+            if(courseName) div.querySelector('.course-select').value = courseName;
+            if(sectionName) div.querySelector('.section-select').value = sectionName;
+            
             return div;
         }
 
@@ -889,27 +931,18 @@
             msgEl.style.display = "block";
 
             if (isFullData) {
-                if (facultyAssignments.size > 0) {
-                    msgEl.innerHTML = "File loaded. Displaying merged saved assignments.";
-                    msgEl.className = "info-msg";
-                } else {
-                    msgEl.innerHTML = "File loaded. Ready to assign.";
-                    msgEl.className = "info-msg";
-                }
+                msgEl.innerHTML = "File loaded. Ready to assign.";
+                msgEl.className = "info-msg";
                 hardcodeSec.style.display = "block";
                 generateBtn.disabled = false;
                 generateBtn.style.opacity = "1";
-                generateBtn.title = "";
                 assignTable.style.display = "table";
             } else {
-                msgEl.innerHTML = "Displaying saved information, upload file to add new data";
-                msgEl.className = "empty-msg";
-                hardcodeSec.style.display = "none"; // Cannot hardcode without time slots
-                generateBtn.disabled = true;
-                generateBtn.style.opacity = "0.5";
-                generateBtn.title = "Upload file to enable generation";
-                // Show table to edit existing
-                assignTable.style.display = "table";
+                msgEl.innerHTML = "Displaying saved information. <b>Upload file</b> for full data, or use Mock Data for demo generation.";
+                msgEl.className = "empty-msg"; 
+                hardcodeSec.style.display = "block"; // Allow hardcoding with mock slots
+                generateBtn.disabled = false; // Allow generation with mock
+                assignTable.style.display = "table"; 
             }
 
             facultyList.forEach((fac) => {
@@ -923,26 +956,23 @@
                 } else { container.appendChild(createAssignmentRow()); }
             });
             
-            // Only render hardcode options if full data (need time slots)
-            if(isFullData) {
-                renderHardcodeSection();
-            }
+            renderHardcodeSection();
         }
 
         // --- NEW: Render Hardcode Section ---
         function renderHardcodeSection() {
-            const container = document.getElementById("hardcode-container");
-            // Only clear/render if we need to reset the dropdown options, essentially on load/change
-            // BUT we want to keep user's existing selections if possible.
-            // Since this function is called on ANY change in assignment table, we should update options.
+            // We don't clear container here to preserve user additions, but we update options
             updateHardcodeOptions();
         }
         
         function getAssignOptionsHTML() {
             let html = '<option value="">-- Select Faculty Course --</option>';
-            if (!currentData) return html;
-            const { allFaculty } = currentData;
-            allFaculty.forEach(fac => {
+            // Use currentData or facultyAssignments
+            let facultyList = [];
+            if (currentData && currentData.allFaculty) facultyList = currentData.allFaculty;
+            else facultyList = Array.from(facultyAssignments.keys());
+            
+            facultyList.forEach(fac => {
                 const assignments = facultyAssignments.get(fac);
                 if (assignments && assignments.length > 0) {
                     assignments.forEach((assign, idx) => {
@@ -957,9 +987,11 @@
         
         function getTimeSlotOptionsHTML() {
             let html = '<option value="">-- Select Time Slot --</option>';
-            if (!currentData || !currentData.allTimeSlots) return html;
-            const sorted = [...currentData.allTimeSlots].sort();
-            sorted.forEach(ts => {
+            let slots = [];
+            if (currentData && currentData.allTimeSlots) slots = currentData.allTimeSlots;
+            else slots = MOCK_TIME_SLOTS.map(s => s.name);
+            
+            slots.sort().forEach(ts => {
                 html += `<option value="${ts}">${ts}</option>`;
             });
             return html;
@@ -1004,10 +1036,10 @@
             
             if (uniqueDays.size >= 5) {
                 alert(`Warning: Faculty '${realFac}' is assigned to teach on all 5 days! This violates the scheduling rule.`);
-                // Reset the select that triggered this? Hard to know exactly which one without passing event context perfectly,
+                // Reset the select that triggered this? Hard to know exactly which one without passing event context perfectly, 
                 // but checking size >= 5 is enough to warn user. They can fix it.
                 // Optionally clear the last changed value:
-                // e.target.value = ""; // But we need event target.
+                // e.target.value = ""; // But we need event target. 
                 // Let's just alert for now as per instructions "display a warning and avoid it" implies we should block it.
             }
         }
@@ -1021,7 +1053,7 @@
             selects.forEach(sel => {
                 const val = sel.value;
                 sel.innerHTML = newHtml;
-                sel.value = val;
+                sel.value = val; 
             });
         }
 
@@ -1151,11 +1183,6 @@
         document.addEventListener("DOMContentLoaded", function() {
             loadCourses();
             loadAssignments();
-            
-            // Force re-run to ensure defaults are picked up if storage was empty
-            if(courses.length === 0) loadCourses();
-            if(facultyAssignments.size === 0) loadAssignments();
-
             updateSchedulerUI(); // Ensure UI updates after assignments load
             
             try { const blob = new Blob([workerCode], { type: 'application/javascript' }); workerObjectURL = URL.createObjectURL(blob); } catch(e) { console.error(e); }
@@ -1186,7 +1213,26 @@
                 const statusEl = document.getElementById("status-message");
                 const singleArea = document.getElementById("single-schedule-results-area");
                 const multiArea = document.getElementById("multi-schedule-results-area");
-                if (!currentData) { statusEl.textContent = "No data loaded."; return; }
+                // Allow mock run if no currentData but assignments exist
+                let dataToUse = currentData;
+                if (!dataToUse) {
+                    if (facultyAssignments.size > 0) {
+                        // Create Mock Data Structure
+                        const facultyList = Array.from(facultyAssignments.keys());
+                        const mockAvail = getMockAvailability(facultyList, MOCK_TIME_SLOTS);
+                        dataToUse = {
+                            allFaculty: facultyList,
+                            allTimeSlots: MOCK_TIME_SLOTS.map(ts => ts.name),
+                            allLectureSlots: getMockLectureSlots(),
+                            teacherAvailabilityMap: mockAvail.teacherAvailabilityMap,
+                            facultyPreferredSlots: mockAvail.facultyPreferredSlots,
+                            transferableFacultyPreferredSlots: Array.from(mockAvail.facultyPreferredSlots.entries()).map(([k, v]) => [k, Array.from(v)])
+                        };
+                    } else {
+                        statusEl.textContent = "No data loaded."; return; 
+                    }
+                }
+                
                 if (currentWorker) { currentWorker.terminate(); currentWorker = null; }
                 if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
 
@@ -1197,7 +1243,7 @@
                 singleArea.innerHTML = "";
                 multiArea.style.display = 'block';
 
-                const { allFaculty, allTimeSlots, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, transferableFacultyPreferredSlots } = currentData;
+                const { allFaculty, allTimeSlots, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, transferableFacultyPreferredSlots } = dataToUse;
                 
                 const workerFacultyList = [];
                 const assignmentDetailsMap = new Map();
@@ -1298,7 +1344,7 @@
                      facultyPreferredSlots: transferableFacultyPreferredSlots,
                      initialBestScore: progressState.bestScore,
                      assignmentDetails: Array.from(assignmentDetailsMap.entries()),
-                     hardcodedAssignments: hardcodedAssignments
+                     hardcodedAssignments: hardcodedAssignments 
                 });
             }
             window.addEventListener('beforeunload', () => { if (workerObjectURL) URL.revokeObjectURL(workerObjectURL); if (currentWorker) currentWorker.terminate(); });
