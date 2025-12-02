@@ -636,15 +636,74 @@
         }
 
 
-        // --- GLOBAL STATE ---
+        // --- GLOBAL STATE & HARDCODED DATA ---
         const COURSE_STORAGE_KEY = 'facultySchedulerCourses';
         const FACULTY_ASSIGNMENT_KEY = 'facultySchedulerAssignments';
+        
+        // --- HARDCODED DEFAULTS (Requested by Supervisor) ---
+        const DEFAULT_COURSES = [{"name":"maths"},{"name":"ec-1"},{"name":"ec2"},{"name":"ec3"},{"name":"e4"},{"name":"e5"},{"name":"e6"},{"name":"e7"},{"name":"e8"},{"name":"e9"},{"name":"e10"},{"name":"e11"},{"name":"e12"},{"name":"e13"},{"name":"e14"},{"name":"e15"},{"name":"e16"},{"name":"e17"},{"name":"engg"},{"name":"dsa"}];
+        
+        const DEFAULT_ASSIGNMENTS = [
+            ["F1_Adams",[{"course":"maths","section":"NA"},{"course":"ec2","section":"Section-2"}]],
+            ["F2_Baker",[{"course":"ec2","section":"Section-1"}]],
+            ["F3_Chen",[{"course":"e4","section":"NA"}]],
+            ["F4_Davis",[{"course":"maths","section":"Section-2"}]],
+            ["F5_Elara",[{"course":"e6","section":"NA"}]],
+            ["F6_Farugi",[{"course":"e5","section":"NA"}]],
+            ["F7_Gupta",[{"course":"e14","section":"NA"}]],
+            ["F8_Hernandez",[{"course":"e4","section":"NA"}]],
+            ["F9_Imani",[{"course":"e5","section":"NA"}]],
+            ["F10_Jones",[{"course":"e7","section":"NA"}]],
+            ["F11_Kim",[{"course":"e15","section":"NA"}]],
+            ["F12_Li",[{"course":"e6","section":"NA"}]],
+            ["F13_Mendoza",[{"course":"e8","section":"NA"}]],
+            ["F14_Nguyen",[{"course":"e8","section":"NA"}]],
+            ["F15_Okafor",[{"course":"e8","section":"NA"}]],
+            ["F16_Patel",[{"course":"e6","section":"NA"}]],
+            ["F17_Quinn",[{"course":"e12","section":"NA"}]],
+            ["F18_Rodriguez",[{"course":"e12","section":"NA"}]],
+            ["F19_Singh",[{"course":"engg","section":"Section-3"}]],
+            ["F20_Taylor",[{"course":"e12","section":"NA"}]],
+            ["F21_Umar",[{"course":"ec3","section":"NA"}]],
+            ["F22_Volkov",[{"course":"e9","section":"NA"}]],
+            ["F23_Walker",[{"course":"e11","section":"NA"}]],
+            ["F24_Xiu",[{"course":"e11","section":"NA"}]],
+            ["F25_Yilmaz",[{"course":"e13","section":"NA"}]],
+            ["F26_Abebe",[{"course":"ec2","section":"NA"}]],
+            ["F27_Bui",[{"course":"e10","section":"NA"}]],
+            ["F28_Chandra",[{"course":"e9","section":"NA"}]],
+            ["F29_Dubois",[{"course":"e4","section":"NA"}]],
+            ["F30_Endo",[{"course":"e7","section":"NA"}]],
+            ["F31_Ferreira",[{"course":"e12","section":"NA"}]],
+            ["F32_Garcia",[{"course":"e12","section":"NA"}]],
+            ["F33_Hassan",[{"course":"e6","section":"NA"}]],
+            ["F34_Ivanov",[{"course":"e8","section":"NA"}]],
+            ["F35_Jang",[{"course":"e12","section":"NA"}]],
+            ["F36_Kowalski",[{"course":"e10","section":"NA"}]],
+            ["F37_Larson",[{"course":"ec3","section":"NA"}]],
+            ["F38_Martinez",[{"course":"e6","section":"NA"}]],
+            ["F39_Nielsen",[{"course":"e10","section":"NA"}]],
+            ["F40_O'Malley",[{"course":"e7","section":"NA"}]],
+            ["F42_Reyes",[{"course":"ec-1","section":"NA"}]],
+            ["F43_Silva",[{"course":"e6","section":"NA"}]],
+            ["F44_Tanaka",[{"course":"e10","section":"NA"}]],
+            ["F45_Upton",[{"course":"ec2","section":"NA"}]],
+            ["F46_Vogel",[{"course":"ec2","section":"NA"}]],
+            ["F47_Wu",[{"course":"ec-1","section":"NA"}]],
+            ["F48_Xylander",[{"course":"e5","section":"NA"}]],
+            ["F49_Yao",[{"course":"maths","section":"NA"}]],
+            ["F50_Zimmerman",[{"course":"ec-1","section":"NA"}]]
+        ];
+
         let courses = [];
         let currentData = null;
         let facultyAssignments = new Map();
         
         function loadCourses() {
-            try { courses = JSON.parse(localStorage.getItem(COURSE_STORAGE_KEY)) || []; } catch { courses = []; }
+            try {
+                const stored = localStorage.getItem(COURSE_STORAGE_KEY);
+                courses = stored ? JSON.parse(stored) : DEFAULT_COURSES;
+            } catch { courses = DEFAULT_COURSES; }
             renderCourseList();
             updateSchedulerUI();
         }
@@ -686,7 +745,7 @@
                     assignArea.style.display = 'block';
                     hardcodeSec.style.display = 'block';
                     msgEl.style.display = 'none';
-                    renderAssignmentTable(); // Ensure table is rendered if data becomes available
+                    renderAssignmentTable();
                 } else {
                     // Check if saved assignments exist
                     if (facultyAssignments.size > 0) {
@@ -705,7 +764,11 @@
             }
         }
         function loadAssignments() {
-            try { facultyAssignments = new Map(JSON.parse(localStorage.getItem(FACULTY_ASSIGNMENT_KEY)) || []); } catch { facultyAssignments = new Map(); }
+            try {
+                const stored = localStorage.getItem(FACULTY_ASSIGNMENT_KEY);
+                const dataToLoad = stored ? JSON.parse(stored) : DEFAULT_ASSIGNMENTS;
+                facultyAssignments = new Map(dataToLoad);
+            } catch { facultyAssignments = new Map(DEFAULT_ASSIGNMENTS); }
         }
         function saveAssignments() { localStorage.setItem(FACULTY_ASSIGNMENT_KEY, JSON.stringify(Array.from(facultyAssignments.entries()))); }
 
