@@ -8,338 +8,124 @@
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            margin: 0 auto;
-            padding: 20px;
-            max-width: 1200px;
-            background-color: #f4f4f9;
-            color: #333;
-        }
-        h1 {
-            color: #004a9c;
-            border-bottom: 2px solid #ddd;
-            padding-bottom: 10px;
-        }
-        h2 {
-             color: #004a9c;
-             border-bottom: 1px solid #ddd;
-             padding-bottom: 8px;
-             margin-top: 30px;
-        }
-        h3 {
-            color: #333;
-            margin-top: 25px;
-            margin-bottom: 10px;
-            border-bottom: 1px dashed #ccc;
-            padding-bottom: 5px;
-        }
-
-        /* --- Navigation Styles --- */
-        nav {
-            margin-bottom: 20px;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            align-items: center;
-        }
-        nav button {
-            font-size: 1.0em;
-            padding: 8px 12px;
-            border: none;
-            background-color: #ddd;
-            color: #333;
-            cursor: pointer;
-            border-radius: 5px;
-            transition: background-color 0.2s;
-            margin-right: 5px;
-        }
-        nav button:hover {
-            background-color: #ccc;
-        }
-        nav button.active {
-            background-color: #004a9c;
-            color: white;
-            font-weight: bold;
-        }
-        
-        /* --- Page Sections --- */
-        .page-section {
-            display: none;
-        }
-        .page-section.active-section {
-            display: block;
-        }
-
-        /* --- Upload & Warning --- */
-        #upload-container {
-            padding: 20px;
-            background-color: #fff;
-            border: 2px dashed #004a9c;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-        #upload-container label {
-            font-weight: bold;
-            font-size: 1.1em;
-            color: #004a9c;
-            margin-right: 10px;
-        }
-        #file-uploader {
-            border: 1px solid #ccc;
-            padding: 5px;
-            border-radius: 4px;
-        }
-        #parse-status {
-            margin-top: 10px;
-            font-style: italic;
-            font-size: 0.9em;
-        }
-        
-        #course-requirement-warning {
-            padding: 30px;
-            background-color: #fff3cd;
-            border: 1px solid #ffeeba;
-            border-radius: 8px;
-            color: #856404;
-            text-align: center;
-            margin-bottom: 20px;
-            display: none;
-        }
-        #course-requirement-warning button {
-            margin-top: 15px;
-            padding: 10px 20px;
-            background-color: #856404;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-        #course-requirement-warning button:hover {
-            background-color: #6d5204;
-        }
-
-        /* --- Assignment Table --- */
-        #assignment-area {
-            margin-top: 20px;
-            background: #fff;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-            display: none;
-        }
-        table.assignment-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 20px;
-        }
-        table.assignment-table th, table.assignment-table td {
-            text-align: left;
-            padding: 12px;
-            border-bottom: 1px solid #eee;
-            vertical-align: top;
-        }
-        table.assignment-table th {
-            background-color: #f9f9f9;
-            color: #004a9c;
-        }
-        
-        /* Assignment Rows within Cell */
-        .assignment-row {
-            display: flex;
-            gap: 5px;
-            margin-bottom: 8px;
-            align-items: center;
-        }
-        .assignment-row select {
-            padding: 6px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-        }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0 auto; padding: 20px; max-width: 1200px; background-color: #f4f4f9; color: #333; }
+        h1 { color: #004a9c; border-bottom: 2px solid #ddd; padding-bottom: 10px; }
+        h2 { color: #004a9c; border-bottom: 1px solid #ddd; padding-bottom: 8px; margin-top: 30px; }
+        h3 { color: #333; margin-top: 25px; margin-bottom: 10px; border-bottom: 1px dashed #ccc; padding-bottom: 5px; }
+        nav { margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+        nav button { font-size: 1.0em; padding: 8px 12px; border: none; background-color: #ddd; color: #333; cursor: pointer; border-radius: 5px; transition: background-color 0.2s; margin-right: 5px; }
+        nav button:hover { background-color: #ccc; }
+        nav button.active { background-color: #004a9c; color: white; font-weight: bold; }
+        .page-section { display: none; }
+        .page-section.active-section { display: block; }
+        #upload-container { padding: 20px; background-color: #fff; border: 2px dashed #004a9c; border-radius: 8px; margin-bottom: 20px; text-align: center; }
+        #upload-container label { font-weight: bold; font-size: 1.1em; color: #004a9c; margin-right: 10px; }
+        #file-uploader { border: 1px solid #ccc; padding: 5px; border-radius: 4px; }
+        #parse-status { margin-top: 10px; font-style: italic; font-size: 0.9em; }
+        #course-requirement-warning { padding: 30px; background-color: #fff3cd; border: 1px solid #ffeeba; border-radius: 8px; color: #856404; text-align: center; margin-bottom: 20px; display: none; }
+        #course-requirement-warning button { margin-top: 15px; padding: 10px 20px; background-color: #856404; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        #course-requirement-warning button:hover { background-color: #6d5204; }
+        #assignment-area { margin-top: 20px; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); display: none; }
+        table.assignment-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        table.assignment-table th, table.assignment-table td { text-align: left; padding: 12px; border-bottom: 1px solid #eee; vertical-align: top; }
+        table.assignment-table th { background-color: #f9f9f9; color: #004a9c; }
+        .assignment-row { display: flex; gap: 5px; margin-bottom: 8px; align-items: center; }
+        .assignment-row select { padding: 6px; border: 1px solid #ccc; border-radius: 4px; }
         .assignment-row select.course-select { width: 200px; }
         .assignment-row select.section-select { width: 110px; }
-        
-        .btn-remove-assign {
-            background: #dc3545; color: #fff; border: none; border-radius: 4px; cursor: pointer; padding: 0 6px; height: 30px; line-height: 30px; font-size: 16px;
-        }
-        .btn-add-assign {
-            background: #28a745; color: #fff; border: none; border-radius: 4px; cursor: pointer; padding: 6px 12px; font-size: 0.9em;
-        }
-
-        #generate-btn {
-            display: block;
-            width: 100%;
-            padding: 15px;
-            background-color: #28a745;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            font-size: 1.2em;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-        #generate-btn:hover {
-            background-color: #218838;
-        }
-
-        /* --- Course Entry --- */
-        #course-entry-container {
-            background-color: #ffffff;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.05);
-        }
-        #course-form {
-            display: grid;
-            grid-template-columns: 1fr 120px;
-            gap: 10px;
-            margin-bottom: 20px;
-            align-items: center;
-            border-bottom: 1px dashed #eee;
-            padding-bottom: 15px;
-        }
-        #course-form input[type="text"] {
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            font-size: 1.0em;
-        }
-        #course-form button {
-            padding: 10px;
-            background-color: #007bff;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-        #course-form button:hover {
-            background-color: #0056b3;
-        }
-        
-        #course-list {
-            list-style: none;
-            padding: 0;
-        }
-        #course-list li {
-            background-color: #f9f9f9;
-            border: 1px solid #eee;
-            padding: 10px 15px;
-            margin-bottom: 8px;
-            border-radius: 4px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        #course-list li span.course-details {
-            font-weight: bold;
-            color: #333;
-        }
-        #course-list li button.remove-btn {
-            background-color: #dc3545;
-            color: white;
-            border: none;
-            padding: 5px 10px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 0.8em;
-            transition: background-color 0.2s;
-        }
-        #course-list li button.remove-btn:hover {
-            background-color: #c82333;
-        }
-
-        /* --- Progress & Results --- */
-        #status-message {
-            font-size: 1.1em;
-            font-weight: bold;
-            margin-bottom: 10px;
-            padding: 12px;
-            border-radius: 5px;
-            transition: background-color 0.3s, color 0.3s;
-            border: 1px solid transparent;
-            display: none;
-        }
+        .btn-remove-assign { background: #dc3545; color: #fff; border: none; border-radius: 4px; cursor: pointer; padding: 0 6px; height: 30px; line-height: 30px; font-size: 16px; }
+        .btn-add-assign { background: #28a745; color: #fff; border: none; border-radius: 4px; cursor: pointer; padding: 6px 12px; font-size: 0.9em; }
+        #generate-btn { display: block; width: 100%; padding: 15px; background-color: #28a745; color: white; border: none; border-radius: 5px; font-size: 1.2em; cursor: pointer; transition: background-color 0.2s; }
+        #generate-btn:hover { background-color: #218838; }
+        #course-entry-container { background-color: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.05); }
+        #course-form { display: grid; grid-template-columns: 1fr 120px; gap: 10px; margin-bottom: 20px; align-items: center; border-bottom: 1px dashed #eee; padding-bottom: 15px; }
+        #course-form input[type="text"] { padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1.0em; }
+        #course-form button { padding: 10px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; }
+        #course-form button:hover { background-color: #0056b3; }
+        #course-list { list-style: none; padding: 0; }
+        #course-list li { background-color: #f9f9f9; border: 1px solid #eee; padding: 10px 15px; margin-bottom: 8px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; }
+        #course-list li span.course-details { font-weight: bold; color: #333; }
+        #course-list li button.remove-btn { background-color: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8em; transition: background-color 0.2s; }
+        #course-list li button.remove-btn:hover { background-color: #c82333; }
+        #status-message { font-size: 1.1em; font-weight: bold; margin-bottom: 10px; padding: 12px; border-radius: 5px; transition: background-color 0.3s, color 0.3s; border: 1px solid transparent; display: none; }
         #status-message.success { display: block; color: #155724; background-color: #d4edda; border-color: #c3e6cb; }
         #status-message.failure { display: block; color: #721c24; background-color: #f8d7da; border-color: #f5c6cb; }
         #status-message.improved { display: block; color: #004085; background-color: #cce5ff; border-color: #b8daff; }
         #status-message.info { display: block; color: #0c5460; background-color: #d1ecf1; border-color: #bee5eb; }
-
-        #progress-container {
-            width: 100%;
-            margin-bottom: 20px;
-            display: none;
-        }
-        #stats-container {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 5px;
-            font-size: 0.9em;
-            font-family: monospace;
-            color: #333;
-        }
+        #progress-container { width: 100%; margin-bottom: 20px; display: none; }
+        #stats-container { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 0.9em; font-family: monospace; color: #333; }
         #progress-bar-outline { width: 100%; height: 20px; background-color: #eee; border: 1px solid #ccc; border-radius: 5px; overflow: hidden; }
         #progress-bar { width: 0%; height: 100%; background-color: #004a9c; transition: width 0.1s linear; }
         #progress-label { text-align: left; font-style: italic; margin-top: 5px; color: #555; }
-
         .card-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; margin-bottom: 20px; }
         .schedule-card { background-color: #ffffff; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); overflow: hidden; }
         .card-header { font-weight: bold; background-color: #f9f9f9; padding: 12px 15px; border-bottom: 1px solid #eee; color: #004a9c; }
         .card-body { padding: 15px; font-size: 1.0em; color: #444; line-height: 1.7; }
         .card-body strong { color: #000; } .card-body em { color: #888; }
-        
-        /* Unhappy status style */
-        .card-body strong.unhappy {
-            color: #B22222;
-            background-color: #f8d7da;
-            font-weight: bold;
-            padding: 2px 4px;
-            border-radius: 3px;
-        }
-
-        /* NEW: Course Tag Style (Small grey box) */
-        .course-tag {
-            display: inline-block;
-            background-color: #f0f0f0;
-            color: #555;
-            padding: 1px 6px;
-            border-radius: 4px;
-            font-size: 0.85em;
-            margin-left: 8px;
-            border: 1px solid #ddd;
-            vertical-align: middle;
-        }
-
+        .card-body strong.unhappy { color: #B22222; background-color: #f8d7da; font-weight: bold; padding: 2px 4px; border-radius: 3px; }
+        .course-tag { display: inline-block; background-color: #f0f0f0; color: #555; padding: 1px 6px; border-radius: 4px; font-size: 0.85em; margin-left: 8px; border: 1px solid #ddd; vertical-align: middle; }
         #multi-schedule-results-area { display: none; }
-        
-        details.heuristic-details {
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            background-color: #fdfdfd;
-            margin-bottom: 10px;
-        }
-        summary.heuristic-summary {
-            font-size: 1.25em;
-            font-weight: bold;
-            color: #333;
-            padding: 12px 15px;
-            cursor: pointer;
-            list-style: none;
-        }
+        details.heuristic-details { border: 1px solid #ddd; border-radius: 8px; background-color: #fdfdfd; margin-bottom: 10px; }
+        summary.heuristic-summary { font-size: 1.25em; font-weight: bold; color: #333; padding: 12px 15px; cursor: pointer; list-style: none; }
         summary.heuristic-summary::-webkit-details-marker { display: none; }
-        details[open] > summary.heuristic-summary::before {
-            content: '▼ ';
+        details[open] > summary.heuristic-summary::before { content: '▼ '; }
+        details > summary.heuristic-summary::before { content: '▶ '; font-size: 0.8em; margin-right: 8px; transition: transform 0.1s linear; }
+        div.heuristic-content { padding: 0 15px 15px 35px; border-top: 1px dashed #ccc; }
+
+        /* Hardcode Section Styles */
+        #hardcode-section {
+            background-color: #eef2f7;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+            border: 1px solid #ced4da;
+            display: none;
         }
-        details > summary.heuristic-summary::before {
-            content: '▶ ';
-            font-size: 0.8em;
-            margin-right: 8px;
-            transition: transform 0.1s linear;
+        .hardcode-controls {
+            margin-bottom: 15px;
+            text-align: center;
         }
-        div.heuristic-content {
-            padding: 0 15px 15px 35px;
-            border-top: 1px dashed #ccc;
+        .hardcode-controls button {
+            background-color: #17a2b8;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+        }
+        .hardcode-controls button:hover {
+            background-color: #138496;
+        }
+        .hardcode-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .hardcode-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #fff;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .hardcode-row select {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            flex-grow: 1;
+        }
+        .hardcode-row button.remove-hc {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            width: 30px;
+            height: 30px;
+            cursor: pointer;
+            font-weight: bold;
         }
     </style>
 </head>
@@ -362,10 +148,8 @@
                 <input type="text" id="course-name-input" placeholder="Course Name (e.g., Intro to CS, CHEM 101)" required>
                 <button id="add-course-btn">Add Course</button>
             </div>
-            
             <h3>Current Courses (<span id="course-count">0</span>)</h3>
-            <ul id="course-list">
-                </ul>
+            <ul id="course-list"></ul>
         </div>
     </main>
 
@@ -384,18 +168,27 @@
             <div id="parse-status">Please select a file to begin.</div>
         </div>
 
+        <!-- NEW: Hardcode Section -->
+        <div id="hardcode-section">
+            <h3>Hardcode Courses (Pre-assign)</h3>
+            <p style="font-size: 0.9em; color: #555; margin-bottom:10px;">
+                Add specific assignments here to lock a faculty member and their course into a specific time slot.
+                <br><b>Note:</b> Hardcoded courses do not consume a regular room from the count, but they still respect faculty availability and course conflict rules.
+            </p>
+            <div class="hardcode-controls">
+                <button onclick="addHardcodeRow()">+ Add Pre-Assignment</button>
+            </div>
+            <div class="hardcode-list" id="hardcode-container"></div>
+        </div>
+
         <div id="assignment-area">
             <h3>Assign Courses to Faculty</h3>
-            <p style="margin-bottom: 15px; color: #555;">Match each faculty member to one or more courses. You can add multiple courses per faculty.</p>
+            <p style="margin-bottom: 15px; color: #555;">Match each faculty member to one or more courses.</p>
             <table class="assignment-table">
                 <thead>
-                    <tr>
-                        <th style="width: 30%;">Faculty Name</th>
-                        <th style="width: 70%;">Assigned Courses & Sections</th>
-                    </tr>
+                    <tr><th style="width: 30%;">Faculty Name</th><th style="width: 70%;">Assigned Courses & Sections</th></tr>
                 </thead>
-                <tbody id="assignment-table-body">
-                    </tbody>
+                <tbody id="assignment-table-body"></tbody>
             </table>
             <button id="generate-btn">Generate Schedule</button>
         </div>
@@ -403,7 +196,6 @@
 
     <main id="page-results" class="page-section">
         <h2>Schedule Optimization Results</h2>
-        
         <div id="status-message">Ready to generate.</div>
         <div id="progress-container">
             <div id="stats-container">
@@ -425,18 +217,14 @@
     </main>
 
     <script>
-
         // --- EMBEDDED WORKER CODE ---
         const workerCode = `
-            // --- scheduler_worker.js content START ---
             const parseTimeSlotCache = new Map();
             function parseTimeSlot(timeString) {
                 if (!timeString) return null;
-                if (parseTimeSlotCache.has(timeString)) {
-                    return parseTimeSlotCache.get(timeString);
-                }
+                if (parseTimeSlotCache.has(timeString)) return parseTimeSlotCache.get(timeString);
                 const dayPartMatch = timeString.match(/^(MWF|TTh|M|W|F|T|Th)\\s+/);
-                if (!dayPartMatch) { console.error('Worker: Invalid day part', timeString); return null; }
+                if (!dayPartMatch) return null;
                 const dayStr = dayPartMatch[1];
                 let days = [];
                 if (dayStr === 'MWF') days = ['M', 'W', 'F'];
@@ -446,16 +234,14 @@
                 else days = dayStr.split(''); 
                 const timePart = timeString.substring(dayStr.length).trim();
                 const timeMatch = timePart.match(/^(\\d{1,2})(?::(\\d{2}))?\\s*-\\s*(\\d{1,2})(?::(\\d{2}))?$/);
-                if (!timeMatch) { console.error('Worker: Invalid time part', timeString); return null; }
+                if (!timeMatch) return null;
                 let startHour = parseInt(timeMatch[1], 10);
                 let startMin = parseInt(timeMatch[2] || '0', 10);
                 let endHour = parseInt(timeMatch[3], 10);
                 let endMin = parseInt(timeMatch[4] || '0', 10);
                 if (startHour >= 1 && startHour <= 5) startHour += 12;
                 if (endHour >= 1 && endHour <= 5) endHour += 12;
-                const startTimeInMinutes = (startHour * 60) + startMin;
-                const endTimeInMinutes = (endHour * 60) + endMin;
-                const result = { id: timeString, days: days, start: startTimeInMinutes, end: endTimeInMinutes };
+                const result = { id: timeString, days: days, start: (startHour * 60) + startMin, end: (endHour * 60) + endMin };
                 parseTimeSlotCache.set(timeString, result);
                 return result;
             }
@@ -472,33 +258,93 @@
                 return false;
             }
 
+            function hasCourseConflict(newSlotObject, courseName, courseTimeSlotMap) {
+                if (!courseName) return false;
+                const assigned = courseTimeSlotMap.get(courseName);
+                if (!assigned || assigned.length === 0) return false;
+                return hasConflict(newSlotObject, assigned);
+            }
+
             function shuffleArray(array) { for (let i = array.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [array[i], array[j]] = [array[j], array[i]]; } return array; }
             function yieldWorker() { return new Promise(resolve => setTimeout(resolve, 0)); }
-            async function solveFullSearchInWorker(allFaculty, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, initialBestScore) {
-                const schedule = new Map(); const assignedLectureSlots = new Set(); 
-                const facultyTimeSlotMap = new Map(); 
-                let progressState = { facultyIndex: 0, combinations: 0, bestScore: initialBestScore };
-                const lectureSlotsByTime = new Map(); for (const l of allLectureSlots) { if (!lectureSlotsByTime.has(l.timeSlot)) lectureSlotsByTime.set(l.timeSlot, []); lectureSlotsByTime.get(l.timeSlot).push(l); }
-                
-                async function solveForFaculty(facultyIndex, currentUnhappy) {
-                    if (currentUnhappy >= progressState.bestScore) return;
-                    progressState.facultyIndex = facultyIndex;
-                    if (facultyIndex === allFaculty.length) { progressState.bestScore = currentUnhappy; self.postMessage({ type: 'solutionUpdate', schedule: Array.from(schedule.entries()), score: currentUnhappy }); return; }
-                    
-                    const facultyKey = allFaculty[facultyIndex]; // "Smith||0"
-                    const realFacultyName = facultyKey.split('||')[0]; // "Smith"
+            
+            async function solveFullSearchInWorker(allFaculty, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, assignmentDetailsMap, hardcodedAssignments, initialBestScore) {
+                const schedule = new Map(); 
+                const assignedLectureSlots = new Set(); 
+                const facultyTimeSlotMap = new Map();
+                const courseTimeSlotMap = new Map();
+                let initialUnhappy = 0;
 
-                    if (progressState.combinations % 1000 === 0) { self.postMessage({ type: 'progressUpdate', facultyIndex: facultyIndex, facultyName: realFacultyName, combinations: progressState.combinations }); await yieldWorker(); }
+                // PRE-PROCESS HARDCODED
+                // hardcodedAssignments is Array of { ts: TimeSlotName, fac: FacultyKey }
+                
+                for (const item of hardcodedAssignments) {
+                    const tsName = item.ts;
+                    const facKey = item.fac;
                     
-                    // Use REAL NAME for conflict checks
+                    const realFac = facKey.split('||')[0];
+                    const courseName = assignmentDetailsMap.get(facKey);
+                    const tsObj = parseTimeSlot(tsName);
+                    
+                    // Create a "Virtual" lecture object that doesn't consume a real room ID but blocks the time
+                    const virtualLecture = { 
+                        id: tsName + " (Hardcoded)", 
+                        timeSlot: tsName, 
+                        timeSlotObject: tsObj 
+                    };
+
+                    const prefSet = facultyPreferredSlots.get(realFac) || new Set();
+                    const isHappy = prefSet.has(tsName);
+                    
+                    schedule.set(facKey, { lecture: virtualLecture, isHappy: isHappy });
+                    
+                    // Book Faculty
+                    let fSlots = facultyTimeSlotMap.get(realFac) || [];
+                    fSlots.push(tsObj);
+                    facultyTimeSlotMap.set(realFac, fSlots);
+
+                    // Book Course
+                    if (!courseTimeSlotMap.has(courseName)) courseTimeSlotMap.set(courseName, []);
+                    courseTimeSlotMap.get(courseName).push(tsObj);
+
+                    if (!isHappy) initialUnhappy++;
+                }
+
+                const unassignedFaculty = allFaculty.filter(f => !schedule.has(f));
+                
+                let progressState = { facultyIndex: 0, combinations: 0, bestScore: initialBestScore };
+                const lectureSlotsByTime = new Map(); 
+                for (const l of allLectureSlots) { 
+                    if (!lectureSlotsByTime.has(l.timeSlot)) lectureSlotsByTime.set(l.timeSlot, []); 
+                    lectureSlotsByTime.get(l.timeSlot).push(l); 
+                }
+                
+                async function solveForFaculty(index, currentUnhappy) {
+                    if (currentUnhappy >= progressState.bestScore) return;
+                    if (index === unassignedFaculty.length) { 
+                        progressState.bestScore = currentUnhappy; 
+                        self.postMessage({ type: 'solutionUpdate', schedule: Array.from(schedule.entries()), score: currentUnhappy }); 
+                        return; 
+                    }
+                    
+                    const facultyKey = unassignedFaculty[index]; 
+                    const realFacultyName = facultyKey.split('||')[0]; 
+                    const currentCourse = assignmentDetailsMap.get(facultyKey); 
+
+                    if (progressState.combinations % 1000 === 0) { 
+                        self.postMessage({ type: 'progressUpdate', facultyIndex: index, totalToAssign: unassignedFaculty.length, facultyName: realFacultyName, combinations: progressState.combinations }); 
+                        await yieldWorker(); 
+                    }
+                    
                     const assignedSlots = facultyTimeSlotMap.get(realFacultyName) || []; 
-                    // Use REAL NAME for preferences
                     const preferredSlots = facultyPreferredSlots.get(realFacultyName) || new Set(); 
                     const possible = [];
                     
                     for (const l of allLectureSlots) { 
-                        // Check if slot matches faculty preferences & isn't double booking the REAL faculty
-                        if (!assignedLectureSlots.has(l.id) && !hasConflict(l.timeSlotObject, assignedSlots)) { 
+                        if (!assignedLectureSlots.has(l.id) && 
+                            !hasConflict(l.timeSlotObject, assignedSlots) &&
+                            !hasCourseConflict(l.timeSlotObject, currentCourse, courseTimeSlotMap)) { 
+                            
                             const isHappy = preferredSlots.has(l.timeSlot);
                             possible.push({ lecture: l, isHappy: isHappy }); 
                         } 
@@ -506,65 +352,69 @@
                     possible.sort((a, b) => b.isHappy - a.isHappy);
                     
                     for (const { lecture, isHappy } of possible) {
-                        progressState.combinations++; const newUnhappy = currentUnhappy + (isHappy ? 0 : 1);
+                        progressState.combinations++; 
+                        const newUnhappy = currentUnhappy + (isHappy ? 0 : 1);
                         
                         schedule.set(facultyKey, { lecture: lecture, isHappy: isHappy }); 
                         assignedLectureSlots.add(lecture.id); 
                         
-                        // Book slot for REAL faculty to prevent conflicts
                         assignedSlots.push(lecture.timeSlotObject);
                         facultyTimeSlotMap.set(realFacultyName, assignedSlots); 
                         
-                        await solveForFaculty(facultyIndex + 1, newUnhappy);
+                        if (!courseTimeSlotMap.has(currentCourse)) courseTimeSlotMap.set(currentCourse, []);
+                        courseTimeSlotMap.get(currentCourse).push(lecture.timeSlotObject);
+
+                        await solveForFaculty(index + 1, newUnhappy);
                         
                         schedule.delete(facultyKey); 
                         assignedLectureSlots.delete(lecture.id); 
-                        assignedSlots.pop(); // Unbook
+                        assignedSlots.pop(); 
+                        courseTimeSlotMap.get(currentCourse).pop();
                     }
                 }
-                const shuffledFaculty = shuffleArray([...allFaculty]); await solveForFaculty(0, 0);
+                
+                shuffleArray(unassignedFaculty); 
+                await solveForFaculty(0, initialUnhappy);
                 return { finalCombinations: progressState.combinations, finalScore: progressState.bestScore };
             }
+            
             self.onmessage = async (event) => {
                 parseTimeSlotCache.clear(); 
-                const { allFaculty, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, initialBestScore } = event.data;
+                const { allFaculty, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, assignmentDetails, hardcodedAssignments, initialBestScore } = event.data;
                 try {
                     const reconstructedTeacherAvailabilityMap = new Map(teacherAvailabilityMap);
                     const reconstructedFacultyPreferredSlots = new Map(facultyPreferredSlots.map(([k, v]) => [k, new Set(v)]));
-                    
+                    const assignmentDetailsMap = new Map(assignmentDetails); 
+                    // hardcodedAssignments passed as array of objects
+
                     const allLectureSlotsParsed = allLectureSlots.map(l => ({
                         ...l,
                         timeSlotObject: parseTimeSlot(l.timeSlot) 
                     })).filter(l => l.timeSlotObject); 
-
-                    if (allLectureSlotsParsed.length !== allLectureSlots.length) {
-                        throw new Error("One or more time slots could not be parsed in the worker.");
-                    }
 
                     const result = await solveFullSearchInWorker(
                         allFaculty, 
                         allLectureSlotsParsed, 
                         reconstructedTeacherAvailabilityMap, 
                         reconstructedFacultyPreferredSlots, 
+                        assignmentDetailsMap,
+                        hardcodedAssignments,
                         initialBestScore
                     );
                     self.postMessage({ type: 'complete', ...result });
                 } catch (error) { console.error("Error in worker:", error); self.postMessage({ type: 'error', message: error.message }); }
-            }; 
-            // --- scheduler_worker.js content END ---
+            };
         `;
 
-        // --- HELPER FUNCTIONS ---
+        // --- GLOBAL HELPER ---
         function shuffleArray(array) { for (let i = array.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [array[i], array[j]] = [array[j], array[i]]; } return array; }
         function formatTime(totalSeconds) { if (totalSeconds >= 3600) { const h = Math.floor(totalSeconds / 3600); const r = totalSeconds % 3600; const m = Math.floor(r / 60); const s = r % 60; return `Time: ${h}h ${m}m ${s.toFixed(1)}s`; } if (totalSeconds >= 60) { const m = Math.floor(totalSeconds / 60); const s = totalSeconds % 60; return `Time: ${m}m ${s.toFixed(1)}s`; } return `Time: ${totalSeconds.toFixed(1)}s`; }
-        
-        // --- Time Parsing Logic (Main Thread) ---
         const parseTimeSlotCache = new Map();
         function parseTimeSlot(timeString) {
             if (!timeString) return null;
             if (parseTimeSlotCache.has(timeString)) return parseTimeSlotCache.get(timeString);
             const dayPartMatch = timeString.match(/^(MWF|TTh|M|W|F|T|Th)\s+/);
-            if (!dayPartMatch) { console.error("Main: Invalid time slot day format:", timeString); return null; }
+            if (!dayPartMatch) return null;
             const dayStr = dayPartMatch[1];
             let days = [];
             if (dayStr === 'MWF') days = ['M', 'W', 'F'];
@@ -574,7 +424,7 @@
             else days = dayStr.split('');
             const timePart = timeString.substring(dayStr.length).trim();
             const timeMatch = timePart.match(/^(\d{1,2})(?::(\d{2}))?\s*-\s*(\d{1,2})(?::(\d{2}))?$/);
-            if (!timeMatch) { console.error("Main: Invalid time slot time format:", timeString); return null; }
+            if (!timeMatch) return null;
             let startHour = parseInt(timeMatch[1], 10);
             let startMin = parseInt(timeMatch[2] || '0', 10);
             let endHour = parseInt(timeMatch[3], 10);
@@ -585,9 +435,8 @@
             parseTimeSlotCache.set(timeString, result);
             return result;
         }
-
         function hasConflict(newSlotObject, assignedSlotObjects) {
-             if (!newSlotObject) return true;
+            if (!newSlotObject) return true;
             for (const assigned of assignedSlotObjects) {
                 const daysOverlap = newSlotObject.days.some(day => assigned.days.includes(day));
                 if (daysOverlap) {
@@ -597,183 +446,160 @@
             }
             return false;
         }
-
-        // --- HEURISTICS (FIXED and UPDATED to provide distinct results) ---
-        
-        function runHeuristicMRVRandom(allFaculty, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots) {
-             // Strategy 1: Minimum Remaining Values (MRV) first, then pick a random happy slot.
-             const schedule = new Map(); const assignedLectureSlots = new Set(); const facultyTimeSlotMap = new Map(); let numUnhappy = 0;
-             const lectureSlotsByTime = new Map(); for (const l of allLectureSlots) { if (!lectureSlotsByTime.has(l.timeSlot)) lectureSlotsByTime.set(l.timeSlot, []); lectureSlotsByTime.get(l.timeSlot).push(l); }
-             
-             // Sort by MRV (faculty with fewest preferred slots first)
-             const sortedFaculty = [...allFaculty].sort((a, b) => {
-                 const realA = a.split('||')[0]; const realB = b.split('||')[0];
-                 return (teacherAvailabilityMap.get(realA)?.length || 0) - (teacherAvailabilityMap.get(realB)?.length || 0);
-             });
-             
-             for (const facultyKey of sortedFaculty) {
-                const realFac = facultyKey.split('||')[0];
-                const assignedSlots = facultyTimeSlotMap.get(realFac) || [];
-                let placed = false;
-                const prefSlots = teacherAvailabilityMap.get(realFac) || [];
-                const prefSet = facultyPreferredSlots.get(realFac) || new Set();
-                let potentialHappy = [];
-                
-                // 1. Try to find a happy slot
-                for (const ts of prefSlots) {
-                    (lectureSlotsByTime.get(ts) || []).forEach(l => {
-                        if (!assignedLectureSlots.has(l.id) && !hasConflict(l.timeSlotObject, assignedSlots)) { potentialHappy.push(l); }
-                    });
-                }
-                
-                if (potentialHappy.length > 0) {
-                    shuffleArray(potentialHappy); const chosen = potentialHappy[0];
-                    schedule.set(facultyKey, { lecture: chosen, isHappy: true });
-                    assignedLectureSlots.add(chosen.id);
-                    assignedSlots.push(chosen.timeSlotObject);
-                    facultyTimeSlotMap.set(realFac, assignedSlots);
-                    placed = true;
-                }
-                
-                // 2. Failsafe: Try to find any available unhappy slot
-                if (!placed) {
-                     let failsafe = [];
-                     for (const l of allLectureSlots) {
-                         if (!assignedLectureSlots.has(l.id) && !hasConflict(l.timeSlotObject, assignedSlots)) { failsafe.push(l); }
-                     }
-                     if(failsafe.length > 0) {
-                         shuffleArray(failsafe); const chosen = failsafe[0];
-                         const isHappy = prefSet.has(chosen.timeSlot); // Should be false here
-                         schedule.set(facultyKey, { lecture: chosen, isHappy: isHappy });
-                         assignedLectureSlots.add(chosen.id);
-                         assignedSlots.push(chosen.timeSlotObject);
-                         facultyTimeSlotMap.set(realFac, assignedSlots);
-                         if (!isHappy) numUnhappy++;
-                         placed = true;
-                     }
-                }
-             }
-             return { name: `Strategy 1: MRV (Fewest Preferences) + Happy Slot First (Conflicts: ${numUnhappy})`, description: "Prioritizes faculty with the fewest available time slots (Minimum Remaining Values), then assigns a random preferred slot if available.", schedule, numUnhappy };
+        function hasCourseConflictMain(newSlotObject, courseName, courseTimeSlotMap) {
+            if (!courseName) return false;
+            const assigned = courseTimeSlotMap.get(courseName);
+            if (!assigned || assigned.length === 0) return false;
+            return hasConflict(newSlotObject, assigned);
         }
-        
-        function runHeuristicMRV_LCV(allFaculty, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots) {
-            // Strategy 2: Random Faculty Order (simulating a Least Constraining Value/tie-breaker, but simplified)
-            const schedule = new Map(); const assignedLectureSlots = new Set(); const facultyTimeSlotMap = new Map(); let numUnhappy = 0;
-            const lectureSlotsByTime = new Map(); for (const l of allLectureSlots) { if (!lectureSlotsByTime.has(l.timeSlot)) lectureSlotsByTime.set(l.timeSlot, []); lectureSlotsByTime.get(l.timeSlot).push(l); }
-            
-            // Key Difference: Randomize the faculty order (No MRV sorting)
-            const sortedFaculty = shuffleArray([...allFaculty]);
-            
-            for (const facultyKey of sortedFaculty) {
-                const realFac = facultyKey.split('||')[0];
-                const assignedSlots = facultyTimeSlotMap.get(realFac) || [];
-                let placed = false;
-                const prefSlots = teacherAvailabilityMap.get(realFac) || [];
-                const prefSet = facultyPreferredSlots.get(realFac) || new Set();
-                let potentialHappy = [];
-                let failsafe = [];
 
-                // 1. Try to find a happy slot (same as H1)
-                for (const ts of prefSlots) {
-                    (lectureSlotsByTime.get(ts) || []).forEach(l => {
-                        if (!assignedLectureSlots.has(l.id) && !hasConflict(l.timeSlotObject, assignedSlots)) { potentialHappy.push(l); }
-                    });
-                }
+        // --- HEURISTICS ---
+        function runHeuristic(strategy, allFaculty, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, assignmentDetailsMap, hardcodedAssignments) {
+            const schedule = new Map();
+            const assignedLectureSlots = new Set();
+            const facultyTimeSlotMap = new Map();
+            const courseTimeSlotMap = new Map();
+            let numUnhappy = 0;
+
+            const lectureSlotsByTime = new Map();
+            for (const l of allLectureSlots) {
+                if (!lectureSlotsByTime.has(l.timeSlot)) lectureSlotsByTime.set(l.timeSlot, []);
+                lectureSlotsByTime.get(l.timeSlot).push(l);
+            }
+
+            // 1. Process Hardcoded - Array of {ts:..., fac:...}
+            for (const item of hardcodedAssignments) {
+                const tsName = item.ts;
+                const facKey = item.fac;
+                const realFac = facKey.split('||')[0];
+                const courseName = assignmentDetailsMap.get(facKey);
+                const tsObj = parseTimeSlot(tsName);
+                const virtualLecture = { id: tsName + " (Hardcoded)", timeSlot: tsName, timeSlotObject: tsObj };
+                const prefSet = facultyPreferredSlots.get(realFac) || new Set();
+                const isHappy = prefSet.has(tsName);
                 
-                if (potentialHappy.length > 0) {
-                    shuffleArray(potentialHappy); const chosen = potentialHappy[0];
-                    schedule.set(facultyKey, { lecture: chosen, isHappy: true });
-                    assignedLectureSlots.add(chosen.id);
-                    assignedSlots.push(chosen.timeSlotObject);
-                    facultyTimeSlotMap.set(realFac, assignedSlots);
-                    placed = true;
-                } else {
-                    // 2. Failsafe: Try to find any available unhappy slot (same as H1)
-                     for (const l of allLectureSlots) {
-                         if (!assignedLectureSlots.has(l.id) && !hasConflict(l.timeSlotObject, assignedSlots)) { failsafe.push(l); }
-                     }
-                     if(failsafe.length > 0) {
-                         shuffleArray(failsafe); const chosen = failsafe[0];
-                         const isHappy = prefSet.has(chosen.timeSlot);
-                         schedule.set(facultyKey, { lecture: chosen, isHappy: isHappy });
-                         assignedLectureSlots.add(chosen.id);
-                         assignedSlots.push(chosen.timeSlotObject);
-                         facultyTimeSlotMap.set(realFac, assignedSlots);
-                         if (!isHappy) numUnhappy++;
-                         placed = true;
-                     }
+                schedule.set(facKey, { lecture: virtualLecture, isHappy: isHappy });
+                
+                let fSlots = facultyTimeSlotMap.get(realFac) || [];
+                fSlots.push(tsObj);
+                facultyTimeSlotMap.set(realFac, fSlots);
+
+                if (!courseTimeSlotMap.has(courseName)) courseTimeSlotMap.set(courseName, []);
+                courseTimeSlotMap.get(courseName).push(tsObj);
+
+                if (!isHappy) numUnhappy++;
+            }
+
+            // 2. Sort Remaining
+            const unassignedFaculty = allFaculty.filter(f => !schedule.has(f));
+            let sortedFaculty = [...unassignedFaculty];
+
+            if (strategy === 'MRV') {
+                sortedFaculty.sort((a, b) => {
+                    const realA = a.split('||')[0]; const realB = b.split('||')[0];
+                    return (teacherAvailabilityMap.get(realA)?.length || 0) - (teacherAvailabilityMap.get(realB)?.length || 0);
+                });
+            } else {
+                shuffleArray(sortedFaculty);
+            }
+
+            // Scarcity Map for Strategy 3
+            const slotRoomCount = new Map();
+            if (strategy === 'SCARCITY') {
+                for (const [ts, lectures] of lectureSlotsByTime.entries()) {
+                    slotRoomCount.set(ts, lectures.length);
                 }
             }
-            return { name: `Strategy 2: Random Faculty Order + Happy Slot First (Conflicts: ${numUnhappy})`, description: "Processes faculty in a random order, then assigns a random preferred slot if available. Less optimal than MRV but faster on average.", schedule, numUnhappy };
-        }
 
-        function runHeuristicSlotScarcity(allFaculty, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots) {
-            // Strategy 3: Pure Random Assignment (Random faculty, random slot)
-            const schedule = new Map(); const assignedLectureSlots = new Set(); const facultyTimeSlotMap = new Map(); let numUnhappy = 0;
-            const lectureSlotsByTime = new Map(); for (const l of allLectureSlots) { if (!lectureSlotsByTime.has(l.timeSlot)) lectureSlotsByTime.set(l.timeSlot, []); lectureSlotsByTime.get(l.timeSlot).push(l); }
-            
-            // Key Difference: Randomize the faculty order (like H2)
-            const sortedFaculty = shuffleArray([...allFaculty]);
-            
             for (const facultyKey of sortedFaculty) {
                 const realFac = facultyKey.split('||')[0];
+                const currentCourse = assignmentDetailsMap.get(facultyKey);
                 const assignedSlots = facultyTimeSlotMap.get(realFac) || [];
                 const prefSet = facultyPreferredSlots.get(realFac) || new Set();
-                let allPossible = [];
-                
-                // Collect ALL available, non-conflicting slots (happy or unhappy)
+                let potentialAssignments = [];
+
+                // Valid slots
                 for (const l of allLectureSlots) {
-                    if (!assignedLectureSlots.has(l.id) && !hasConflict(l.timeSlotObject, assignedSlots)) { allPossible.push(l); }
+                    if (!assignedLectureSlots.has(l.id) &&
+                        !hasConflict(l.timeSlotObject, assignedSlots) &&
+                        !hasCourseConflictMain(l.timeSlotObject, currentCourse, courseTimeSlotMap)) {
+                        
+                        const isHappy = prefSet.has(l.timeSlot);
+                        let heuristicValue = 0;
+
+                        if (strategy === 'LCV') {
+                            const unassignedKeys = sortedFaculty.filter(f => !schedule.has(f) && f !== facultyKey);
+                            for (const otherFacKey of unassignedKeys) {
+                                const otherRealFac = otherFacKey.split('||')[0];
+                                const otherPrefSet = facultyPreferredSlots.get(otherRealFac) || new Set();
+                                const otherAssignedSlots = facultyTimeSlotMap.get(otherRealFac) || [];
+                                if (otherPrefSet.has(l.timeSlot) && !hasConflict(l.timeSlotObject, otherAssignedSlots)) {
+                                    heuristicValue++;
+                                }
+                            }
+                        } else if (strategy === 'SCARCITY') {
+                            heuristicValue = slotRoomCount.get(l.timeSlot) || Infinity;
+                        }
+
+                        potentialAssignments.push({ lecture: l, isHappy: isHappy, val: heuristicValue });
+                    }
                 }
 
-                if(allPossible.length > 0) {
-                    // Randomly choose from ALL possible slots
-                    shuffleArray(allPossible); const chosen = allPossible[0];
-                    const isHappy = prefSet.has(chosen.timeSlot);
+                // If Strategy 1 (Happy First), filter happy first, else shuffle
+                if (potentialAssignments.length > 0) {
+                    if (strategy === 'MRV') {
+                        // Strategy 1: Random Happy
+                        const happy = potentialAssignments.filter(p => p.isHappy);
+                        if(happy.length > 0) { shuffleArray(happy); potentialAssignments = happy; }
+                        else { shuffleArray(potentialAssignments); }
+                    } else {
+                        // Strategy 2 & 3: Sort
+                        potentialAssignments.sort((a, b) => {
+                            if (b.isHappy !== a.isHappy) return b.isHappy - a.isHappy;
+                            return a.val - b.val;
+                        });
+                    }
+
+                    const chosen = potentialAssignments[0].lecture;
+                    const isHappy = potentialAssignments[0].isHappy;
                     schedule.set(facultyKey, { lecture: chosen, isHappy: isHappy });
                     assignedLectureSlots.add(chosen.id);
-                    assignedSlots.push(chosen.timeSlotObject);
-                    facultyTimeSlotMap.set(realFac, assignedSlots);
+                    
+                    const fSlots = facultyTimeSlotMap.get(realFac) || [];
+                    fSlots.push(chosen.timeSlotObject);
+                    facultyTimeSlotMap.set(realFac, fSlots);
+
+                    if (!courseTimeSlotMap.has(currentCourse)) courseTimeSlotMap.set(currentCourse, []);
+                    courseTimeSlotMap.get(currentCourse).push(chosen.timeSlotObject);
+
                     if (!isHappy) numUnhappy++;
+                } else {
+                    // Failsafe for Strategy 1/Generic (unhappy slots if happy failed was handled above for MRV)
+                    // If absolutely no valid slot found:
+                    numUnhappy += 999;
                 }
             }
-            return { name: `Strategy 3: Random Faculty + Random Slot (Conflicts: ${numUnhappy})`, description: "A purely random assignment strategy for both faculty order and slot selection, providing a baseline comparison.", schedule, numUnhappy };
+
+            return { schedule, numUnhappy };
         }
+
 
         // --- GLOBAL STATE ---
         const COURSE_STORAGE_KEY = 'facultySchedulerCourses';
         const FACULTY_ASSIGNMENT_KEY = 'facultySchedulerAssignments';
         let courses = [];
-        let currentData = null; // Excel data
-        // Map<FacultyName, Array<{ course: string, section: string }>>
+        let currentData = null;
         let facultyAssignments = new Map();
         
-        // --- Course Functions ---
         function loadCourses() {
-            try {
-                const stored = localStorage.getItem(COURSE_STORAGE_KEY);
-                courses = stored ? JSON.parse(stored) : [];
-            } catch (e) {
-                courses = [];
-            }
+            try { courses = JSON.parse(localStorage.getItem(COURSE_STORAGE_KEY)) || []; } catch { courses = []; }
             renderCourseList();
             updateSchedulerUI();
         }
-
-        function saveCourses() {
-            try {
-                localStorage.setItem(COURSE_STORAGE_KEY, JSON.stringify(courses));
-                updateSchedulerUI();
-            } catch (e) {
-                console.error(e);
-            }
-        }
-        
+        function saveCourses() { localStorage.setItem(COURSE_STORAGE_KEY, JSON.stringify(courses)); updateSchedulerUI(); }
         function renderCourseList() {
             const listEl = document.getElementById("course-list");
-            const listContainer = document.getElementById("course-entry-container").querySelector("h3 span");
-            if(listContainer) listContainer.textContent = courses.length;
-            
+            document.getElementById("course-entry-container").querySelector("h3 span").textContent = courses.length;
             listEl.innerHTML = '';
             courses.forEach((course, index) => {
                 const li = document.createElement('li');
@@ -781,66 +607,42 @@
                 listEl.appendChild(li);
             });
         }
-
-        function removeCourse(index) {
-            courses.splice(index, 1);
-            renderCourseList();
-            saveCourses();
-        }
-        
+        function removeCourse(index) { courses.splice(index, 1); renderCourseList(); saveCourses(); }
         function addCourse() {
             const nameInput = document.getElementById("course-name-input");
             const name = nameInput.value.trim();
             if (!name) return;
-            if (courses.some(c => c.name.toLowerCase() === name.toLowerCase())) {
-                alert("Course already exists.");
-                return;
-            }
+            if (courses.some(c => c.name.toLowerCase() === name.toLowerCase())) { alert("Course already exists."); return; }
             courses.push({ name: name });
             renderCourseList();
             saveCourses();
             nameInput.value = '';
-            nameInput.focus();
         }
-
         function updateSchedulerUI() {
             const warningEl = document.getElementById("course-requirement-warning");
             const uploadEl = document.getElementById("upload-container");
             const assignArea = document.getElementById("assignment-area");
+            const hardcodeSec = document.getElementById("hardcode-section");
 
             if (courses.length > 0) {
                 warningEl.style.display = 'none';
                 uploadEl.style.display = 'block';
-                if (currentData) assignArea.style.display = 'block';
+                if (currentData) {
+                    assignArea.style.display = 'block';
+                    hardcodeSec.style.display = 'block';
+                }
             } else {
                 warningEl.style.display = 'block';
                 uploadEl.style.display = 'none';
                 assignArea.style.display = 'none';
+                hardcodeSec.style.display = 'none';
             }
         }
-        
-        // --- Assignment Persistence Functions ---
         function loadAssignments() {
-            try {
-                const stored = localStorage.getItem(FACULTY_ASSIGNMENT_KEY);
-                const storedArray = stored ? JSON.parse(stored) : [];
-                facultyAssignments = new Map(storedArray);
-            } catch (e) {
-                console.error("Could not load assignments:", e);
-                facultyAssignments = new Map();
-            }
+            try { facultyAssignments = new Map(JSON.parse(localStorage.getItem(FACULTY_ASSIGNMENT_KEY)) || []); } catch { facultyAssignments = new Map(); }
         }
+        function saveAssignments() { localStorage.setItem(FACULTY_ASSIGNMENT_KEY, JSON.stringify(Array.from(facultyAssignments.entries()))); }
 
-        function saveAssignments() {
-            try {
-                const arrayToStore = Array.from(facultyAssignments.entries());
-                localStorage.setItem(FACULTY_ASSIGNMENT_KEY, JSON.stringify(arrayToStore));
-            } catch (e) {
-                console.error("Could not save assignments:", e);
-            }
-        }
-
-        // --- Excel Parsing ---
         async function parseExcelFile(file) {
             parseTimeSlotCache.clear();
             return new Promise((resolve, reject) => {
@@ -849,14 +651,13 @@
                     try {
                         const data = new Uint8Array(event.target.result);
                         const workbook = XLSX.read(data, { type: 'array' });
-
                         const facultySheet = workbook.Sheets['Faculty'];
-                        if (!facultySheet) reject(new Error("Sheet 'Faculty' not found."));
+                        if (!facultySheet) throw new Error("Sheet 'Faculty' not found.");
                         const facultyJson = XLSX.utils.sheet_to_json(facultySheet, { header: 1 });
                         const allFaculty = facultyJson.map(row => row[0]).filter(Boolean);
                         
                         const timeSlotsSheet = workbook.Sheets['TimeSlots'];
-                        if (!timeSlotsSheet) reject(new Error("Sheet 'TimeSlots' not found."));
+                        if (!timeSlotsSheet) throw new Error("Sheet 'TimeSlots' not found.");
                         const timeSlotsJson = XLSX.utils.sheet_to_json(timeSlotsSheet);
                         
                         const allTimeSlots = [];
@@ -866,25 +667,20 @@
                             const numRooms = parseInt(row['Number of Rooms'], 10);
                             if (slotName && numRooms > 0) {
                                 const parsedSlot = parseTimeSlot(slotName);
-                                if (!parsedSlot) {
-                                    reject(new Error(`Could not parse time slot: "${slotName}".`));
-                                    return;
-                                }
+                                if (!parsedSlot) throw new Error(`Could not parse time slot: "${slotName}".`);
                                 allTimeSlots.push(slotName);
                                 for (let i = 1; i <= numRooms; i++) {
                                     allLectureSlots.push({ id: `${slotName} (Room ${i})`, timeSlot: slotName, timeSlotObject: parsedSlot });
                                 }
                             }
                         }
-                        if (allFaculty.length > allLectureSlots.length) { reject(new Error(`Impossible schedule: ${allFaculty.length} faculty but only ${allLectureSlots.length} rooms.`)); return; }
+                        if (allFaculty.length > allLectureSlots.length) throw new Error(`Impossible schedule: ${allFaculty.length} faculty but only ${allLectureSlots.length} rooms.`);
                         
                         const availabilitySheet = workbook.Sheets['Availability'];
-                        if (!availabilitySheet) reject(new Error("Sheet 'Availability' not found."));
+                        if (!availabilitySheet) throw new Error("Sheet 'Availability' not found.");
                         const availabilityJson = XLSX.utils.sheet_to_json(availabilitySheet, { header: 1 });
-                        
                         const timeSlotHeaders = availabilityJson[0].slice(1);
                         const facultyAvailabilityRows = availabilityJson.slice(1);
-                        
                         const teacherAvailabilityMap = new Map();
                         const facultyPreferredSlots = new Map();
                         
@@ -903,137 +699,149 @@
                                 facultyPreferredSlots.set(facultyName, preferredSlotSet);
                             }
                         }
-                        const transferableFacultyPreferredSlots = Array.from(facultyPreferredSlots.entries()).map(([k, v]) => [k, Array.from(v)]);
-                        resolve({ allFaculty, allTimeSlots, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, transferableFacultyPreferredSlots });
+                        resolve({ allFaculty, allTimeSlots, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, transferableFacultyPreferredSlots: Array.from(facultyPreferredSlots.entries()).map(([k, v]) => [k, Array.from(v)]) });
                     } catch (e) { reject(e); }
                 };
                 reader.readAsArrayBuffer(file);
             });
         }
 
-        // --- Assignments UI ---
         function createAssignmentRow(courseName = "", sectionName = "") {
             let options = `<option value="">-- Select Course --</option>`;
             courses.forEach(c => { options += `<option value="${c.name}" ${c.name === courseName ? 'selected' : ''}>${c.name}</option>`; });
-            
             let sectionOptions = `<option value="NA" ${sectionName === "NA" ? 'selected' : ''}>NA</option>
                                   <option value="Section-1" ${sectionName === "Section-1" ? 'selected' : ''}>Section-1</option>
                                   <option value="Section-2" ${sectionName === "Section-2" ? 'selected' : ''}>Section-2</option>
                                   <option value="Section-3" ${sectionName === "Section-3" ? 'selected' : ''}>Section-3</option>`;
-
             const div = document.createElement('div');
             div.className = 'assignment-row';
-            div.innerHTML = `
-                <select class="course-select">${options}</select>
-                <select class="section-select">${sectionOptions}</select>
-                <button class="btn-remove-assign" onclick="removeAssignmentRow(this)">×</button>
-            `;
-            // Add listeners to save when dropdowns change
-            div.querySelector('.course-select').addEventListener('change', collectAndSaveAssignments);
-            div.querySelector('.section-select').addEventListener('change', collectAndSaveAssignments);
+            div.innerHTML = `<select class="course-select">${options}</select><select class="section-select">${sectionOptions}</select><button class="btn-remove-assign" onclick="removeAssignmentRow(this)">×</button>`;
+            div.querySelector('.course-select').addEventListener('change', () => { collectAndSaveAssignments(); renderHardcodeSection(); });
+            div.querySelector('.section-select').addEventListener('change', () => { collectAndSaveAssignments(); renderHardcodeSection(); });
             return div;
         }
 
         function renderAssignmentTable() {
             const tbody = document.getElementById("assignment-table-body");
             tbody.innerHTML = "";
-            const assignArea = document.getElementById("assignment-area");
-
             if (!currentData || !currentData.allFaculty) return;
-
             loadAssignments();
-
             currentData.allFaculty.forEach((fac) => {
                 const tr = document.createElement("tr");
-                tr.innerHTML = `
-                    <td><strong>${fac}</strong></td>
-                    <td id="assign-cell-${fac.replace(/\s/g, '-')}" data-faculty-name="${fac}">
-                        <div class="assign-container"></div>
-                        <button class="btn-add-assign" onclick="addAssignmentRowToCell(this)">+ Add Course</button>
-                    </td>
-                `;
+                tr.innerHTML = `<td><strong>${fac}</strong></td><td id="assign-cell-${fac.replace(/\s/g, '-')}" data-faculty-name="${fac}"><div class="assign-container"></div><button class="btn-add-assign" onclick="addAssignmentRowToCell(this)">+ Add Course</button></td>`;
                 tbody.appendChild(tr);
-                
                 const container = tr.querySelector('.assign-container');
                 const existingAssignments = facultyAssignments.get(fac);
-                
                 if (existingAssignments && existingAssignments.length > 0) {
-                    existingAssignments.forEach(assignment => {
-                        container.appendChild(createAssignmentRow(assignment.course, assignment.section));
-                    });
-                } else {
-                    container.appendChild(createAssignmentRow());
-                }
+                    existingAssignments.forEach(assignment => { container.appendChild(createAssignmentRow(assignment.course, assignment.section)); });
+                } else { container.appendChild(createAssignmentRow()); }
             });
-
-            assignArea.style.display = "block";
+            document.getElementById("assignment-area").style.display = "block";
+            document.getElementById("hardcode-section").style.display = "block";
             collectAndSaveAssignments();
+            renderHardcodeSection();
         }
 
-        window.addAssignmentRowToCell = function(buttonEl) {
-            const container = buttonEl.closest('td').querySelector('.assign-container');
-            container.appendChild(createAssignmentRow());
-            collectAndSaveAssignments();
+        // --- NEW: Render Hardcode Section ---
+        function renderHardcodeSection() {
+            // This function is now responsible for options only, the structure is dynamic
+            // But actually, we want to allow users to ADD rows.
+            // So we need a dynamic list.
+            const container = document.getElementById("hardcode-container");
+            // If empty, we might want to clear, but we need to preserve user entries if re-rendering due to course change?
+            // For simplicity, let's just re-render if needed, but user adds rows manually.
+            // Actually, best to just update options in existing rows if any.
+            
+            // Let's implement addHardcodeRow and helper to populate select options
         }
         
-        window.removeAssignmentRow = function(buttonEl) {
-            buttonEl.parentElement.remove();
-            collectAndSaveAssignments();
+        function getAssignOptionsHTML() {
+            let html = '<option value="">-- Select Faculty Course --</option>';
+            if (!currentData) return html;
+            const { allFaculty } = currentData;
+            allFaculty.forEach(fac => {
+                const assignments = facultyAssignments.get(fac);
+                if (assignments && assignments.length > 0) {
+                    assignments.forEach((assign, idx) => {
+                        const key = `${fac}||${idx}`;
+                        const label = `${fac}: ${assign.course} [${assign.section}]`;
+                        html += `<option value="${key}">${label}</option>`;
+                    });
+                }
+            });
+            return html;
+        }
+        
+        function getTimeSlotOptionsHTML() {
+            let html = '<option value="">-- Select Time Slot --</option>';
+            if (!currentData || !currentData.allTimeSlots) return html;
+            const sorted = [...currentData.allTimeSlots].sort();
+            sorted.forEach(ts => {
+                html += `<option value="${ts}">${ts}</option>`;
+            });
+            return html;
+        }
+
+        window.addHardcodeRow = function() {
+            const container = document.getElementById("hardcode-container");
+            const div = document.createElement("div");
+            div.className = "hardcode-row";
+            div.innerHTML = `
+                <select class="hc-timeslot">${getTimeSlotOptionsHTML()}</select>
+                <select class="hc-course">${getAssignOptionsHTML()}</select>
+                <button class="remove-hc" onclick="this.parentElement.remove()">×</button>
+            `;
+            container.appendChild(div);
+        }
+
+        window.addAssignmentRowToCell = function(buttonEl) { buttonEl.closest('td').querySelector('.assign-container').appendChild(createAssignmentRow()); collectAndSaveAssignments(); updateHardcodeOptions(); }
+        window.removeAssignmentRow = function(buttonEl) { buttonEl.parentElement.remove(); collectAndSaveAssignments(); updateHardcodeOptions(); }
+        
+        function updateHardcodeOptions() {
+            // Update all existing course selects in hardcode section
+            const selects = document.querySelectorAll(".hc-course");
+            const newHtml = getAssignOptionsHTML();
+            selects.forEach(sel => {
+                const val = sel.value;
+                sel.innerHTML = newHtml;
+                sel.value = val; // Try to keep selected
+            });
         }
 
         function collectAssignments() {
             const newAssignments = new Map();
-            const trs = document.querySelectorAll("#assignment-table-body tr");
-            trs.forEach(tr => {
+            document.querySelectorAll("#assignment-table-body tr").forEach(tr => {
                 const facName = tr.querySelector("td strong").textContent;
                 const rows = tr.querySelectorAll(".assignment-row");
                 const assignments = [];
-                
                 rows.forEach(row => {
                     const course = row.querySelector(".course-select").value;
                     const section = row.querySelector(".section-select").value;
-                    if(course) {
-                        assignments.push({ course, section });
-                    }
+                    if(course) assignments.push({ course, section });
                 });
-                
-                if(assignments.length > 0) {
-                    newAssignments.set(facName, assignments);
-                }
+                if(assignments.length > 0) newAssignments.set(facName, assignments);
             });
-            
             facultyAssignments = newAssignments;
             return newAssignments;
         }
-        
-        function collectAndSaveAssignments() {
-            collectAssignments();
-            saveAssignments();
-        }
-
+        function collectAndSaveAssignments() { collectAssignments(); saveAssignments(); }
 
         function getLabel(facultyKey) {
             const parts = facultyKey.split('||');
             const realName = parts[0];
             const index = parseInt(parts[1], 10);
-            
             const assignments = facultyAssignments.get(realName);
             if (!assignments || !assignments[index]) return realName;
-            
             const assign = assignments[index];
             let cText = assign.course;
-            if (assign.section && assign.section !== "NA") {
-                cText += ` [${assign.section}]`;
-            }
+            if (assign.section && assign.section !== "NA") cText += ` [${assign.section}]`;
             return `${realName} <span class="course-tag">${cText}</span>`;
         }
 
-        // --- Render Results ---
         function renderSingleSchedule(schedule, allTimeSlots, allLectureSlots, containerEl) {
             const assignedMap = new Map();
             for (const [f, a] of schedule.entries()) { assignedMap.set(a.lecture.id, { faculty: f, isHappy: a.isHappy }); }
             const tsGroup = new Map(); for (const ts of allTimeSlots) { tsGroup.set(ts, []); }
-            
             for (const l of allLectureSlots) {
                 const rName = l.id.substring(l.timeSlot.length).trim();
                 const assign = assignedMap.get(l.id);
@@ -1041,11 +849,21 @@
                 if (assign) {
                     const uhCls = assign.isHappy ? '' : 'class="unhappy"';
                     assignStr = `${rName}: <strong ${uhCls}>${getLabel(assign.faculty)}</strong>`;
-                } else {
-                    assignStr = `${rName}: <em>(Unassigned)</em>`;
-                }
+                } else { assignStr = `${rName}: <em>(Unassigned)</em>`; }
                 tsGroup.get(l.timeSlot).push(assignStr);
             }
+            
+            // Check for Hardcoded/Virtual entries (they won't be in allLectureSlots)
+            for (const [fac, data] of schedule.entries()) {
+                if (data.lecture.id.includes("(Hardcoded)")) {
+                    const uhCls = data.isHappy ? '' : 'class="unhappy"';
+                    const entry = `Hardcoded: <strong ${uhCls}>${getLabel(fac)}</strong>`;
+                    if(tsGroup.has(data.lecture.timeSlot)) {
+                        tsGroup.get(data.lecture.timeSlot).unshift(entry); // Put at top
+                    }
+                }
+            }
+
             let htmlContent = `<div class="card-container">`;
             const sortedTS = [...allTimeSlots].sort();
             for (const ts of sortedTS) {
@@ -1061,7 +879,8 @@
              results.forEach((result, index) => {
                 const colors = schemes[index % schemes.length];
                 fullHtml += `<details class="heuristic-details"><summary class="heuristic-summary">${result.name}</summary><div class="heuristic-content">`;
-                if(result.description) { fullHtml += `<p style="margin-top: 10px; margin-bottom: 20px; font-size: 0.9em; font-style: italic; max-width: 800px; color: #333;">${result.description}</p>`; }
+                if(result.description) fullHtml += `<p style="margin-top: 10px; margin-bottom: 20px; font-size: 0.9em; font-style: italic; max-width: 800px; color: #333;">${result.description}</p>`;
+                
                 const assignedMap = new Map(); for (const [f, a] of result.schedule.entries()) { assignedMap.set(a.lecture.id, { faculty: f, isHappy: a.isHappy }); } const tsGroup = new Map(); for (const ts of allTimeSlots) { tsGroup.set(ts, []); }
                 for (const l of allLectureSlots) {
                     const rName = l.id.substring(l.timeSlot.length).trim();
@@ -1073,26 +892,20 @@
                     } else { assignStr = `${rName}: <em>(Unassigned)</em>`; }
                     tsGroup.get(l.timeSlot).push(assignStr);
                 }
+                
+                // Add hardcoded display for heuristics too
+                for (const [fac, data] of result.schedule.entries()) {
+                    if (data.lecture.id.includes("(Hardcoded)")) {
+                        const uhCls = data.isHappy ? '' : 'class="unhappy"';
+                        const entry = `Hardcoded: <strong ${uhCls}>${getLabel(fac)}</strong>`;
+                        if(tsGroup.has(data.lecture.timeSlot)) tsGroup.get(data.lecture.timeSlot).unshift(entry);
+                    }
+                }
+
                 fullHtml += `<div class="card-container">`; const sortedTS = [...allTimeSlots].sort(); for (const ts of sortedTS) { const assigns = tsGroup.get(ts) || []; const cardStyle = `border: 1px solid ${colors.cardBorder};`; const headerStyle = `background-color: ${colors.headerBg}; color: ${colors.headerColor};`; fullHtml += `<div class="schedule-card" style="${cardStyle}"><div class="card-header" style="${headerStyle}">${ts}</div><div class="card-body">${assigns.join('<br>')}</div></div>`; }
                 fullHtml += `</div></div></details>`;
              });
              containerEl.innerHTML = fullHtml;
-        }
-
-        function renderAvailabilityPage(allFaculty, teacherAvailabilityMap, container) {
-            let htmlContent = `<p style="margin-bottom: 15px; font-style: italic; font-size: 0.9em; padding: 10px; background-color: #f9f9f9; border-radius: 5px;">`;
-            htmlContent += `<b>Legend:</b> <span style="color: #D93025; font-weight: bold;">Red text</span> indicates preferred time slots that overlap with each other.</p>`;
-             const sortedFaculty = [...allFaculty].sort();
-            for (const faculty of sortedFaculty) {
-                const availableSlots = teacherAvailabilityMap.get(faculty) || [];
-                const sortedSlots = [...availableSlots].sort();
-                const parsedSlots = sortedSlots.map(s => parseTimeSlot(s)).filter(Boolean);
-                const conflictingSlots = new Set();
-                for (let i = 0; i < parsedSlots.length; i++) { for (let j = i + 1; j < parsedSlots.length; j++) { const slotA = parsedSlots[i]; const slotB = parsedSlots[j]; const daysOverlap = slotA.days.some(day => slotB.days.includes(day)); if (daysOverlap) { const timesOverlap = (slotA.start < slotB.end) && (slotA.end > slotA.start); if (timesOverlap) { conflictingSlots.add(slotA.id); conflictingSlots.add(slotB.id); } } } }
-                const htmlList = sortedSlots.map(slotString => { if (conflictingSlots.has(slotString)) { return `<span style="color: #D93025; font-weight: bold;">${slotString}</span>`; } else { return slotString; } });
-                htmlContent += `<div class="schedule-card"><div class="card-header">${faculty}</div><div class="card-body">${htmlList.join('<br>')}</div></div>`;
-            }
-            container.innerHTML = htmlContent;
         }
 
         // --- Main & Handlers ---
@@ -1107,54 +920,28 @@
         };
 
         document.addEventListener("DOMContentLoaded", function() {
-            
             loadCourses();
             loadAssignments();
-            
-            try {
-                const blob = new Blob([workerCode], { type: 'application/javascript' });
-                workerObjectURL = URL.createObjectURL(blob);
-            } catch(e) { console.error(e); }
-
+            try { const blob = new Blob([workerCode], { type: 'application/javascript' }); workerObjectURL = URL.createObjectURL(blob); } catch(e) { console.error(e); }
             document.getElementById("add-course-btn").addEventListener('click', addCourse);
-            document.getElementById("course-name-input").addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') { e.preventDefault(); addCourse(); }
-            });
-
-            // Upload
+            document.getElementById("course-name-input").addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addCourse(); } });
             document.getElementById("file-uploader").addEventListener('change', async (event) => {
                 const file = event.target.files[0];
                 if (!file) return;
-                const parseStatus = document.getElementById("parse-status");
-                parseStatus.textContent = "Parsing Excel file...";
-                parseStatus.style.color = '#333';
-
                 try {
                     currentData = await parseExcelFile(file);
-                    parseStatus.textContent = `Loaded: ${currentData.allFaculty.length} faculty.`;
-                    parseStatus.style.color = 'green';
-                    
-                    renderAvailabilityPage(currentData.allFaculty, currentData.teacherAvailabilityMap, document.getElementById("availability-container"));
-                    
-                    // Show assignments table - will now load existing data
+                    document.getElementById("parse-status").textContent = `Loaded: ${currentData.allFaculty.length} faculty.`;
+                    document.getElementById("parse-status").style.color = 'green';
                     renderAssignmentTable();
-
                 } catch (e) {
-                    console.error("Error parsing file:", e);
-                    parseStatus.textContent = `Error: ${e.message}`;
-                    parseStatus.style.color = 'red';
+                    console.error(e);
+                    document.getElementById("parse-status").textContent = `Error: ${e.message}`;
+                    document.getElementById("parse-status").style.color = 'red';
                     currentData = null;
                 }
             });
+            document.getElementById("generate-btn").addEventListener('click', () => { collectAndSaveAssignments(); switchPage('results'); runOptimizeScheduler(); });
 
-            // Generate Button
-            document.getElementById("generate-btn").addEventListener('click', () => {
-                collectAndSaveAssignments();
-                switchPage('results');
-                runOptimizeScheduler();
-            });
-
-            // Optimization Logic
             let timerInterval = null;
             let progressState = { bestScore: Infinity };
             let bestKnownSchedule = new Map();
@@ -1163,12 +950,7 @@
                 const statusEl = document.getElementById("status-message");
                 const singleArea = document.getElementById("single-schedule-results-area");
                 const multiArea = document.getElementById("multi-schedule-results-area");
-                
-                if (!currentData) {
-                    statusEl.textContent = "No data loaded.";
-                    return;
-                }
-
+                if (!currentData) { statusEl.textContent = "No data loaded."; return; }
                 if (currentWorker) { currentWorker.terminate(); currentWorker = null; }
                 if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
 
@@ -1181,33 +963,45 @@
 
                 const { allFaculty, allTimeSlots, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, transferableFacultyPreferredSlots } = currentData;
                 
-                // Flatten faculty based on assignments
+                // 1. Gather Worker Faculty List & Details
                 const workerFacultyList = [];
+                const assignmentDetailsMap = new Map();
                 allFaculty.forEach(fac => {
                     const assignments = facultyAssignments.get(fac);
                     if (assignments && assignments.length > 0) {
-                        assignments.forEach((_, idx) => {
-                            workerFacultyList.push(`${fac}||${idx}`);
+                        assignments.forEach((assign, idx) => {
+                            const key = `${fac}||${idx}`;
+                            workerFacultyList.push(key);
+                            assignmentDetailsMap.set(key, assign.course);
                         });
                     }
                 });
                 
-                if (workerFacultyList.length === 0) {
-                    statusEl.textContent = "No courses assigned. Please assign at least one course to a faculty member.";
-                    statusEl.className = "failure";
-                    return;
-                }
+                if (workerFacultyList.length === 0) { statusEl.textContent = "No courses assigned."; statusEl.className = "failure"; return; }
 
-                progressState.bestScore = Infinity;
-                bestKnownSchedule = new Map();
+                // 2. Gather Hardcoded Values
+                // Array of objects {ts: string, fac: string} to support multiple entries
+                const hardcodedAssignments = [];
+                const rows = document.querySelectorAll(".hardcode-row");
+                rows.forEach(row => {
+                    const ts = row.querySelector(".hc-timeslot").value;
+                    const fac = row.querySelector(".hc-course").value;
+                    if (ts && fac) {
+                        hardcodedAssignments.push({ ts: ts, fac: fac });
+                    }
+                });
 
-                // 1. Run ALL Heuristics
+                // 3. Run Heuristics (Main Thread)
                 const heuristicResults = [];
-                heuristicResults.push(runHeuristicMRVRandom(workerFacultyList, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots));
-                heuristicResults.push(runHeuristicMRV_LCV(workerFacultyList, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots));
-                heuristicResults.push(runHeuristicSlotScarcity(workerFacultyList, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots));
-
+                const h1 = runHeuristic('MRV', workerFacultyList, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, assignmentDetailsMap, hardcodedAssignments);
+                heuristicResults.push({ name: `Strategy 1: MRV + Happy First (Conflicts: ${h1.numUnhappy})`, description: "MRV + Happy First", schedule: h1.schedule, numUnhappy: h1.numUnhappy });
                 
+                const h2 = runHeuristic('LCV', workerFacultyList, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, assignmentDetailsMap, hardcodedAssignments);
+                heuristicResults.push({ name: `Strategy 2: MRV + LCV (Conflicts: ${h2.numUnhappy})`, description: "MRV + LCV", schedule: h2.schedule, numUnhappy: h2.numUnhappy });
+
+                const h3 = runHeuristic('SCARCITY', workerFacultyList, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, assignmentDetailsMap, hardcodedAssignments);
+                heuristicResults.push({ name: `Strategy 3: MRV + Scarcity (Conflicts: ${h3.numUnhappy})`, description: "MRV + Scarcity", schedule: h3.schedule, numUnhappy: h3.numUnhappy });
+
                 multiArea.innerHTML = '<h3 style="border-bottom:1px solid #ccc;">Heuristic Pre-Check</h3>';
                 renderMultipleHeuristics(heuristicResults, allTimeSlots, allLectureSlots, multiArea);
 
@@ -1217,29 +1011,21 @@
 
                 singleArea.innerHTML = '<h3 style="border-bottom:1px solid #ccc;">Best Solution (Optimizing...)</h3>';
                 renderSingleSchedule(bestKnownSchedule, allTimeSlots, allLectureSlots, singleArea);
-
                 statusEl.textContent = "Heuristics completed. Running the brute force..";
                 
-                // 2. Start Worker
                 const startTime = performance.now();
-                const timerLabel = document.getElementById("timer-label");
-                timerInterval = setInterval(() => {
-                    timerLabel.textContent = formatTime((performance.now() - startTime) / 1000);
-                }, 100);
+                document.getElementById("timer-label").textContent = "Time: 0.0s";
+                timerInterval = setInterval(() => { document.getElementById("timer-label").textContent = formatTime((performance.now() - startTime) / 1000); }, 100);
 
                 try { currentWorker = new Worker(workerObjectURL); } catch(e) { console.error(e); return; }
 
                 currentWorker.onmessage = (event) => {
                     const data = event.data;
-                    const pBar = document.getElementById("progress-bar");
-                    const pLabel = document.getElementById("progress-label");
-                    const cLabel = document.getElementById("combo-label");
-
                     if (data.type === 'progressUpdate') {
-                        const pct = (data.facultyIndex / workerFacultyList.length) * 100;
-                        pBar.style.width = pct + '%';
-                        pLabel.textContent = `Optimizing: ${data.facultyName}...`;
-                        cLabel.textContent = `Combinations: ${data.combinations.toLocaleString()}`;
+                        const pct = ((data.facultyIndex / (data.totalToAssign || 1)) * 100).toFixed(1);
+                        document.getElementById("progress-bar").style.width = pct + '%';
+                        document.getElementById("progress-label").textContent = `Optimizing... (${pct}%)`;
+                        document.getElementById("combo-label").textContent = `Combinations: ${data.combinations.toLocaleString()}`;
                     } else if (data.type === 'solutionUpdate') {
                         if (data.score < progressState.bestScore) {
                             progressState.bestScore = data.score;
@@ -1255,7 +1041,6 @@
                         const dur = (performance.now() - startTime) / 1000;
                         statusEl.textContent = `Complete. Final conflicts: ${progressState.bestScore}. (${dur.toFixed(1)}s)`;
                         statusEl.className = "success";
-                        
                         if (data.finalScore < bestHeuristic.numUnhappy) {
                              singleArea.innerHTML = '<h3 style="border-bottom:1px solid #ccc;">Final Optimal Solution</h3>';
                              renderSingleSchedule(bestKnownSchedule, allTimeSlots, allLectureSlots, singleArea);
@@ -1270,14 +1055,12 @@
                      allLectureSlots,
                      teacherAvailabilityMap: Array.from(teacherAvailabilityMap.entries()),
                      facultyPreferredSlots: transferableFacultyPreferredSlots,
-                     initialBestScore: progressState.bestScore
+                     initialBestScore: progressState.bestScore,
+                     assignmentDetails: Array.from(assignmentDetailsMap.entries()),
+                     hardcodedAssignments: hardcodedAssignments // Pass as array
                 });
             }
-
-            window.addEventListener('beforeunload', () => {
-                 if (workerObjectURL) { URL.revokeObjectURL(workerObjectURL); }
-                 if (currentWorker) { currentWorker.terminate(); }
-            });
+            window.addEventListener('beforeunload', () => { if (workerObjectURL) URL.revokeObjectURL(workerObjectURL); if (currentWorker) currentWorker.terminate(); });
         });
     </script>
 </body>
