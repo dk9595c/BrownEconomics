@@ -267,31 +267,45 @@
         const workerCode = `
             const parseTimeSlotCache = new Map();
             function parseTimeSlot(timeString) {
-                if (!timeString) return null;
-                if (parseTimeSlotCache.has(timeString)) return parseTimeSlotCache.get(timeString);
-                const dayPartMatch = timeString.match(/^(MWF|TTh|M|W|F|T|Th)\\s+/);
-                if (!dayPartMatch) return null;
-                const dayStr = dayPartMatch[1];
-                let days = [];
-                if (dayStr === 'MWF') days = ['M', 'W', 'F'];
-                else if (dayStr === 'TTh') days = ['T', 'H'];
-                else if (dayStr === 'T') days = ['T'];
-                else if (dayStr === 'Th') days = ['H']; 
-                else days = dayStr.split(''); 
-                const timePart = timeString.substring(dayStr.length).trim();
-                const timeMatch = timePart.match(/^(\\d{1,2})(?::(\\d{2}))?\\s*-\\s*(\\d{1,2})(?::(\\d{2}))?$/);
-                if (!timeMatch) return null;
-                let startHour = parseInt(timeMatch[1], 10);
-                let startMin = parseInt(timeMatch[2] || '0', 10);
-                let endHour = parseInt(timeMatch[3], 10);
-                let endMin = parseInt(timeMatch[4] || '0', 10);
-                if (startHour >= 1 && startHour <= 5) startHour += 12;
-                if (endHour >= 1 && endHour <= 5) endHour += 12;
-                const result = { id: timeString, days: days, start: (startHour * 60) + startMin, end: (endHour * 60) + endMin };
-                parseTimeSlotCache.set(timeString, result);
-                return result;
-            }
-            
+                        if (!timeString) return null;
+                        if (parseTimeSlotCache.has(timeString)) return parseTimeSlotCache.get(timeString);
+
+                        // 1. Clean up whitespace
+                        const cleanStr = timeString.trim();
+
+                        // 2. Updated Regex: Added "MW"
+                        const dayPartMatch = cleanStr.match(/^(MWF|MW|TTh|M|W|F|T|Th)\s+/);
+                        if (!dayPartMatch) return null;
+
+                        const dayStr = dayPartMatch[1];
+                        let days = [];
+
+                        // 3. Updated Logic: Added "MW" case
+                        if (dayStr === 'MWF') days = ['M', 'W', 'F'];
+                        else if (dayStr === 'MW') days = ['M', 'W'];  // <--- NEW LINE
+                        else if (dayStr === 'TTh') days = ['T', 'H'];
+                        else if (dayStr === 'T') days = ['T'];
+                        else if (dayStr === 'Th') days = ['H']; 
+                        else days = dayStr.split(''); 
+
+                        // 4. Robust Time Parsing (using cleanStr)
+                        const timePart = cleanStr.substring(dayStr.length).trim();
+                        const timeMatch = timePart.match(/^(\d{1,2})(?::(\d{2}))?\s*-\s*(\d{1,2})(?::(\d{2}))?$/);
+                        
+                        if (!timeMatch) return null;
+
+                        let startHour = parseInt(timeMatch[1], 10);
+                        let startMin = parseInt(timeMatch[2] || '0', 10);
+                        let endHour = parseInt(timeMatch[3], 10);
+                        let endMin = parseInt(timeMatch[4] || '0', 10);
+
+                        if (startHour >= 1 && startHour <= 5) startHour += 12;
+                        if (endHour >= 1 && endHour <= 5) endHour += 12;
+
+                        const result = { id: timeString, days: days, start: (startHour * 60) + startMin, end: (endHour * 60) + endMin };
+                        parseTimeSlotCache.set(timeString, result);
+                        return result;
+                    }
             function hasConflict(newSlotObject, assignedSlotObjects) {
                 if (!newSlotObject) return true; 
                 for (const assigned of assignedSlotObjects) {
@@ -465,30 +479,39 @@
         function formatTime(totalSeconds) { if (totalSeconds >= 3600) { const h = Math.floor(totalSeconds / 3600); const r = totalSeconds % 3600; const m = Math.floor(r / 60); const s = r % 60; return `Time: ${h}h ${m}m ${s.toFixed(1)}s`; } if (totalSeconds >= 60) { const m = Math.floor(totalSeconds / 60); const s = totalSeconds % 60; return `Time: ${m}m ${s.toFixed(1)}s`; } return `Time: ${totalSeconds.toFixed(1)}s`; }
         const parseTimeSlotCache = new Map();
         function parseTimeSlot(timeString) {
-            if (!timeString) return null;
-            if (parseTimeSlotCache.has(timeString)) return parseTimeSlotCache.get(timeString);
-            const dayPartMatch = timeString.match(/^(MWF|TTh|M|W|F|T|Th)\s+/);
-            if (!dayPartMatch) return null;
-            const dayStr = dayPartMatch[1];
-            let days = [];
-            if (dayStr === 'MWF') days = ['M', 'W', 'F'];
-            else if (dayStr === 'TTh') days = ['T', 'H'];
-            else if (dayStr === 'T') days = ['T'];
-            else if (dayStr === 'Th') days = ['H'];
-            else days = dayStr.split('');
-            const timePart = timeString.substring(dayStr.length).trim();
-            const timeMatch = timePart.match(/^(\d{1,2})(?::(\d{2}))?\s*-\s*(\d{1,2})(?::(\d{2}))?$/);
-            if (!timeMatch) return null;
-            let startHour = parseInt(timeMatch[1], 10);
-            let startMin = parseInt(timeMatch[2] || '0', 10);
-            let endHour = parseInt(timeMatch[3], 10);
-            let endMin = parseInt(timeMatch[4] || '0', 10);
-            if (startHour >= 1 && startHour <= 5) startHour += 12;
-            if (endHour >= 1 && endHour <= 5) endHour += 12;
-            const result = { id: timeString, days: days, start: (startHour * 60) + startMin, end: (endHour * 60) + endMin };
-            parseTimeSlotCache.set(timeString, result);
-            return result;
-        }
+                    if (!timeString) return null;
+                    if (parseTimeSlotCache.has(timeString)) return parseTimeSlotCache.get(timeString);
+                    
+                    // CHANGED: Added |MW to the Regex
+                    const dayPartMatch = timeString.match(/^(MWF|MW|TTh|M|W|F|T|Th)\s+/);
+                    
+                    if (!dayPartMatch) return null;
+                    const dayStr = dayPartMatch[1];
+                    let days = [];
+                    
+                    if (dayStr === 'MWF') days = ['M', 'W', 'F'];
+                    else if (dayStr === 'MW') days = ['M', 'W']; // CHANGED: Added specific check for MW
+                    else if (dayStr === 'TTh') days = ['T', 'H'];
+                    else if (dayStr === 'T') days = ['T'];
+                    else if (dayStr === 'Th') days = ['H'];
+                    else days = dayStr.split('');
+                    
+                    const timePart = timeString.substring(dayStr.length).trim();
+                    const timeMatch = timePart.match(/^(\d{1,2})(?::(\d{2}))?\s*-\s*(\d{1,2})(?::(\d{2}))?$/);
+                    if (!timeMatch) return null;
+                    
+                    let startHour = parseInt(timeMatch[1], 10);
+                    let startMin = parseInt(timeMatch[2] || '0', 10);
+                    let endHour = parseInt(timeMatch[3], 10);
+                    let endMin = parseInt(timeMatch[4] || '0', 10);
+                    
+                    if (startHour >= 1 && startHour <= 5) startHour += 12;
+                    if (endHour >= 1 && endHour <= 5) endHour += 12;
+                    
+                    const result = { id: timeString, days: days, start: (startHour * 60) + startMin, end: (endHour * 60) + endMin };
+                    parseTimeSlotCache.set(timeString, result);
+                    return result;
+                }
         function hasConflict(newSlotObject, assignedSlotObjects) {
             if (!newSlotObject) return true;
             for (const assigned of assignedSlotObjects) {
