@@ -38,16 +38,16 @@
         #generate-btn { display: block; width: 100%; padding: 15px; background-color: #28a745; color: white; border: none; border-radius: 5px; font-size: 1.2em; cursor: pointer; transition: background-color 0.2s; }
         #generate-btn:hover { background-color: #218838; }
         #generate-btn:disabled { background-color: #ccc; cursor: not-allowed; opacity: 0.6; }
-        #course-entry-container { background-color: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.05); }
-        #course-form { display: grid; grid-template-columns: 1fr 120px; gap: 10px; margin-bottom: 20px; align-items: center; border-bottom: 1px dashed #eee; padding-bottom: 15px; }
-        #course-form input[type="text"] { padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1.0em; }
-        #course-form button { padding: 10px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; }
-        #course-form button:hover { background-color: #0056b3; }
-        #course-list { list-style: none; padding: 0; }
-        #course-list li { background-color: #f9f9f9; border: 1px solid #eee; padding: 10px 15px; margin-bottom: 8px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; }
-        #course-list li span.course-details { font-weight: bold; color: #333; }
-        #course-list li button.remove-btn { background-color: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8em; transition: background-color 0.2s; }
-        #course-list li button.remove-btn:hover { background-color: #c82333; }
+        #course-entry-container, #timeslot-entry-container { background-color: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.05); }
+        #course-form, #timeslot-form { display: grid; grid-template-columns: 1fr 120px; gap: 10px; margin-bottom: 20px; align-items: center; border-bottom: 1px dashed #eee; padding-bottom: 15px; }
+        #course-form input[type="text"], #timeslot-form input[type="text"] { padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1.0em; }
+        #course-form button, #timeslot-form button { padding: 10px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; }
+        #course-form button:hover, #timeslot-form button:hover { background-color: #0056b3; }
+        #course-list, #timeslot-list { list-style: none; padding: 0; }
+        #course-list li, #timeslot-list li { background-color: #f9f9f9; border: 1px solid #eee; padding: 10px 15px; margin-bottom: 8px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; }
+        #course-list li span.course-details, #timeslot-list li span.timeslot-details { font-weight: bold; color: #333; }
+        #course-list li button.remove-btn, #timeslot-list li button.remove-btn { background-color: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8em; transition: background-color 0.2s; }
+        #course-list li button.remove-btn:hover, #timeslot-list li button.remove-btn:hover { background-color: #c82333; }
         #status-message { font-size: 1.1em; font-weight: bold; margin-bottom: 10px; padding: 12px; border-radius: 5px; transition: background-color 0.3s, color 0.3s; border: 1px solid transparent; display: none; }
         #status-message.success { display: block; color: #155724; background-color: #d4edda; border-color: #c3e6cb; }
         #status-message.failure { display: block; color: #721c24; background-color: #f8d7da; border-color: #f5c6cb; }
@@ -164,9 +164,9 @@
 
     <nav>
         <button id="nav-courses" class="active" onclick="switchPage('courses')">1. Course Entry</button>
-        <button id="nav-faculty" onclick="switchPage('faculty')">2. Faculty & Assignments</button>
-        <button id="nav-results" onclick="switchPage('results')">3. Schedule Results</button>
-        <button id="nav-availability" onclick="switchPage('availability')">4. Availability</button>
+        <button id="nav-custom-slots" onclick="switchPage('custom-slots')">2. Custom Time Slots</button> <button id="nav-faculty" onclick="switchPage('faculty')">3. Faculty & Assignments</button>
+        <button id="nav-results" onclick="switchPage('results')">4. Schedule Results</button>
+        <button id="nav-availability" onclick="switchPage('availability')">5. Availability</button>
     </nav>
     
     <main id="page-courses" class="page-section active-section">
@@ -179,6 +179,22 @@
             </div>
             <h3>Current Courses (<span id="course-count">0</span>)</h3>
             <ul id="course-list"></ul>
+        </div>
+    </main>
+
+    <main id="page-custom-slots" class="page-section">
+        <h2>Custom Time Slot Entry</h2>
+        <div id="timeslot-entry-container">
+            <p style="font-size: 0.9em; color: #555; margin-bottom: 20px;">
+                Enter time slots here that may not be present in the uploaded Excel file. These slots will be available for Hardcoding (Pre-assignment).
+                <br>Format example: <b>MWF 10:00-11:00</b> or <b>TTh 1:00-2:30</b>
+            </p>
+            <div id="timeslot-form">
+                <input type="text" id="timeslot-name-input" placeholder="Time Slot Name (e.g., MWF 10-11, T 4:30-5:30)" required>
+                <button id="add-timeslot-btn">Add Slot</button>
+            </div>
+            <h3>Current Custom Slots (<span id="timeslot-count">0</span>)</h3>
+            <ul id="timeslot-list"></ul>
         </div>
     </main>
 
@@ -331,6 +347,8 @@
                     const courseName = assignmentDetailsMap.get(facKey);
                     const tsObj = parseTimeSlot(tsName);
                     
+                    // NOTE: Hardcoded slots *must* be treated as virtual lectures as they do not consume real room capacity
+                    // We only need the time slot object for conflict checking.
                     const virtualLecture = { id: tsName + " (Hardcoded)", timeSlot: tsName, timeSlotObject: tsObj };
                     const prefSet = facultyPreferredSlots.get(realFac) || new Set();
                     const isHappy = prefSet.has(tsName);
@@ -638,10 +656,13 @@
         // --- GLOBAL STATE ---
         const COURSE_STORAGE_KEY = 'facultySchedulerCourses';
         const FACULTY_ASSIGNMENT_KEY = 'facultySchedulerAssignments';
+        const TIMESLOT_STORAGE_KEY = 'facultySchedulerCustomTimeslots'; // NEW KEY
         let courses = [];
+        let customTimeSlots = []; // NEW ARRAY
         let currentData = null;
         let facultyAssignments = new Map();
         
+        // --- COURSE MANAGEMENT ---
         function loadCourses() {
             try { courses = JSON.parse(localStorage.getItem(COURSE_STORAGE_KEY)) || []; } catch { courses = []; }
             renderCourseList();
@@ -650,7 +671,7 @@
         function saveCourses() { localStorage.setItem(COURSE_STORAGE_KEY, JSON.stringify(courses)); updateSchedulerUI(); }
         function renderCourseList() {
             const listEl = document.getElementById("course-list");
-            document.getElementById("course-entry-container").querySelector("h3 span").textContent = courses.length;
+            document.getElementById("course-count").textContent = courses.length;
             listEl.innerHTML = '';
             courses.forEach((course, index) => {
                 const li = document.createElement('li');
@@ -669,6 +690,40 @@
             saveCourses();
             nameInput.value = '';
         }
+
+        // --- CUSTOM SLOT MANAGEMENT ---
+        function loadCustomSlots() {
+            try { customTimeSlots = JSON.parse(localStorage.getItem(TIMESLOT_STORAGE_KEY)) || []; } catch { customTimeSlots = []; }
+            renderTimeSlotList();
+            renderHardcodeSection(); // Update dropdowns if custom slots change
+        }
+        function saveCustomSlots() { localStorage.setItem(TIMESLOT_STORAGE_KEY, JSON.stringify(customTimeSlots)); renderHardcodeSection(); }
+        function renderTimeSlotList() {
+            const listEl = document.getElementById("timeslot-list");
+            document.getElementById("timeslot-count").textContent = customTimeSlots.length;
+            listEl.innerHTML = '';
+            customTimeSlots.forEach((slot, index) => {
+                const li = document.createElement('li');
+                li.innerHTML = `<span class="timeslot-details">${slot.name} (Custom)</span> <button class="remove-btn" onclick="removeTimeSlot(${index})">Remove</button>`;
+                listEl.appendChild(li);
+            });
+        }
+        function removeTimeSlot(index) { customTimeSlots.splice(index, 1); renderTimeSlotList(); saveCustomSlots(); }
+        function addTimeSlot() {
+            const nameInput = document.getElementById("timeslot-name-input");
+            const name = nameInput.value.trim();
+            if (!name) return;
+            const parsed = parseTimeSlot(name);
+            if (!parsed) { alert("Invalid time slot format. Please use 'Day(s) HH:MM-HH:MM' format."); return; }
+            if (customTimeSlots.some(s => s.name.toLowerCase() === name.toLowerCase())) { alert("Time slot already exists."); return; }
+            
+            customTimeSlots.push({ name: name });
+            renderTimeSlotList();
+            saveCustomSlots();
+            nameInput.value = '';
+        }
+        
+        // --- UI MANAGEMENT ---
         function updateSchedulerUI() {
             const warningEl = document.getElementById("course-requirement-warning");
             const uploadEl = document.getElementById("upload-container");
@@ -680,21 +735,18 @@
                 warningEl.style.display = 'none';
                 uploadEl.style.display = 'block';
                 
-                // Logic updated to show assignment area if assignments exist (saved) or data loaded
-                if (currentData) {
+                if (currentData || facultyAssignments.size > 0) {
                     assignArea.style.display = 'block';
                     hardcodeSec.style.display = 'block';
-                    msgEl.style.display = 'none';
-                    renderAssignmentTable(); // Ensure table is rendered if data becomes available
-                } else {
-                    // Check if saved assignments exist
-                    if (facultyAssignments.size > 0) {
-                        assignArea.style.display = 'block'; // Show container so message is visible
-                        renderAssignmentTable(); // Will render message-only view
+                    if (currentData) {
+                        msgEl.style.display = 'none';
                     } else {
-                        assignArea.style.display = 'none';
-                        hardcodeSec.style.display = 'none';
+                        msgEl.style.display = 'block';
                     }
+                    renderAssignmentTable();
+                } else {
+                    assignArea.style.display = 'none';
+                    hardcodeSec.style.display = 'none';
                 }
             } else {
                 warningEl.style.display = 'block';
@@ -812,7 +864,6 @@
             }
 
             if (facultyList.length === 0 && !isFullData) {
-                // Nothing to show
                 document.getElementById("assignment-area").style.display = "none";
                 hardcodeSec.style.display = "none";
                 return;
@@ -837,11 +888,10 @@
             } else {
                 msgEl.innerHTML = "Displaying saved information, upload file to add new data";
                 msgEl.className = "empty-msg";
-                hardcodeSec.style.display = "none"; // Cannot hardcode without time slots
+                hardcodeSec.style.display = "none";
                 generateBtn.disabled = true;
                 generateBtn.style.opacity = "0.5";
                 generateBtn.title = "Upload file to enable generation";
-                // Show table to edit existing
                 assignTable.style.display = "table";
             }
 
@@ -856,7 +906,6 @@
                 } else { container.appendChild(createAssignmentRow()); }
             });
             
-            // Only render hardcode options if full data (need time slots)
             if(isFullData) {
                 renderHardcodeSection();
             }
@@ -864,10 +913,6 @@
 
         // --- NEW: Render Hardcode Section ---
         function renderHardcodeSection() {
-            const container = document.getElementById("hardcode-container");
-            // Only clear/render if we need to reset the dropdown options, essentially on load/change
-            // BUT we want to keep user's existing selections if possible.
-            // Since this function is called on ANY change in assignment table, we should update options.
             updateHardcodeOptions();
         }
         
@@ -890,9 +935,32 @@
         
         function getTimeSlotOptionsHTML() {
             let html = '<option value="">-- Select Time Slot --</option>';
-            if (!currentData || !currentData.allTimeSlots) return html;
-            const sorted = [...currentData.allTimeSlots].sort();
+            
+            let allSlots = [];
+            
+            // 1. Add Excel Slots (if loaded)
+            if (currentData && currentData.allTimeSlots) {
+                allSlots.push(...currentData.allTimeSlots);
+            }
+            
+            // 2. Add Custom Slots (always available)
+            customTimeSlots.forEach(slot => {
+                if (!allSlots.includes(slot.name)) {
+                    allSlots.push(slot.name);
+                }
+            });
+            
+            const sorted = [...allSlots].sort();
+
+            // Check for parseable time slots before generating options
+            const validSlots = [];
             sorted.forEach(ts => {
+                if(parseTimeSlot(ts)) {
+                    validSlots.push(ts);
+                }
+            });
+
+            validSlots.forEach(ts => {
                 html += `<option value="${ts}">${ts}</option>`;
             });
             return html;
@@ -916,7 +984,7 @@
                 const facValue = facSelect.value;
                 if (facValue) {
                     validateFiveDayRule(facValue);
-                    validateHardcodeConflicts(); // Check for overlaps
+                    validateHardcodeConflicts();
                 }
             };
 
@@ -1011,6 +1079,15 @@
                 sel.innerHTML = newHtml;
                 sel.value = val;
             });
+
+            // Update Time Slot Dropdowns across all hardcode rows
+            const timeSelects = document.querySelectorAll(".hc-timeslot");
+            const newTimeHtml = getTimeSlotOptionsHTML();
+            timeSelects.forEach(sel => {
+                const val = sel.value;
+                sel.innerHTML = newTimeHtml;
+                sel.value = val;
+            });
         }
 
         function collectAssignments() {
@@ -1044,9 +1121,16 @@
         }
 
         function renderSingleSchedule(schedule, allTimeSlots, allLectureSlots, containerEl) {
+            // Get all available time slots (Excel + Custom)
+            const allAvailableSlots = new Set(allTimeSlots);
+            customTimeSlots.forEach(slot => allAvailableSlots.add(slot.name));
+            
             const assignedMap = new Map();
             for (const [f, a] of schedule.entries()) { assignedMap.set(a.lecture.id, { faculty: f, isHappy: a.isHappy }); }
-            const tsGroup = new Map(); for (const ts of allTimeSlots) { tsGroup.set(ts, []); }
+            const tsGroup = new Map();
+            for (const ts of allAvailableSlots) { tsGroup.set(ts, []); } // Initialize with all slots
+            
+            // Process real lecture slots
             for (const l of allLectureSlots) {
                 const rName = l.id.substring(l.timeSlot.length).trim();
                 const assign = assignedMap.get(l.id);
@@ -1058,6 +1142,7 @@
                 tsGroup.get(l.timeSlot).push(assignStr);
             }
             
+            // Process hardcoded slots (including custom slots)
             for (const [fac, data] of schedule.entries()) {
                 if (data.lecture.id.includes("(Hardcoded)")) {
                     const entry = `Hardcoded: <strong class="hardcoded">${getLabel(fac)}</strong>`;
@@ -1068,23 +1153,32 @@
             }
 
             let htmlContent = `<div class="card-container">`;
-            const sortedTS = [...allTimeSlots].sort();
+            const sortedTS = [...allAvailableSlots].sort();
             for (const ts of sortedTS) {
                 const assigns = tsGroup.get(ts) || [];
-                htmlContent += `<div class="schedule-card"><div class="card-header">${ts}</div><div class="card-body">${assigns.join('<br>')}</div></div>`;
+                // Only render time slots that actually have content or were defined in Excel
+                if (assigns.length > 0 || allTimeSlots.includes(ts)) {
+                    htmlContent += `<div class="schedule-card"><div class="card-header">${ts}</div><div class="card-body">${assigns.join('<br>')}</div></div>`;
+                }
             }
             htmlContent += `</div>`; containerEl.innerHTML = htmlContent;
         }
 
         function renderMultipleHeuristics(results, allTimeSlots, allLectureSlots, containerEl) {
              const schemes = [{ headerBg: '#f0f6ff', headerColor: '#004a9c', cardBorder: '#b8daff' }, { headerBg: '#f0fff0', headerColor: '#155724', cardBorder: '#c3e6cb' }, { headerBg: '#fffaf0', headerColor: '#856404', cardBorder: '#ffeeba' }, { headerBg: '#e6e6e6', headerColor: '#333', cardBorder: '#ccc' }];
+             
+             const allAvailableSlots = new Set(allTimeSlots);
+             customTimeSlots.forEach(slot => allAvailableSlots.add(slot.name));
+
              let fullHtml = "";
              results.forEach((result, index) => {
                 const colors = schemes[index % schemes.length];
                 fullHtml += `<details class="heuristic-details"><summary class="heuristic-summary">${result.name}</summary><div class="heuristic-content">`;
                 if(result.description) fullHtml += `<p style="margin-top: 10px; margin-bottom: 20px; font-size: 0.9em; font-style: italic; max-width: 800px; color: #333;">${result.description}</p>`;
                 
-                const assignedMap = new Map(); for (const [f, a] of result.schedule.entries()) { assignedMap.set(a.lecture.id, { faculty: f, isHappy: a.isHappy }); } const tsGroup = new Map(); for (const ts of allTimeSlots) { tsGroup.set(ts, []); }
+                const assignedMap = new Map(); for (const [f, a] of result.schedule.entries()) { assignedMap.set(a.lecture.id, { faculty: f, isHappy: a.isHappy }); }
+                const tsGroup = new Map(); for (const ts of allAvailableSlots) { tsGroup.set(ts, []); }
+                
                 for (const l of allLectureSlots) {
                     const rName = l.id.substring(l.timeSlot.length).trim();
                     const assign = assignedMap.get(l.id);
@@ -1103,7 +1197,16 @@
                     }
                 }
 
-                fullHtml += `<div class="card-container">`; const sortedTS = [...allTimeSlots].sort(); for (const ts of sortedTS) { const assigns = tsGroup.get(ts) || []; const cardStyle = `border: 1px solid ${colors.cardBorder};`; const headerStyle = `background-color: ${colors.headerBg}; color: ${colors.headerColor};`; fullHtml += `<div class="schedule-card" style="${cardStyle}"><div class="card-header" style="${headerStyle}">${ts}</div><div class="card-body">${assigns.join('<br>')}</div></div>`; }
+                fullHtml += `<div class="card-container">`;
+                const sortedTS = [...allAvailableSlots].sort();
+                for (const ts of sortedTS) {
+                    const assigns = tsGroup.get(ts) || [];
+                    if (assigns.length > 0 || allTimeSlots.includes(ts)) {
+                        const cardStyle = `border: 1px solid ${colors.cardBorder};`;
+                        const headerStyle = `background-color: ${colors.headerBg}; color: ${colors.headerColor};`;
+                        fullHtml += `<div class="schedule-card" style="${cardStyle}"><div class="card-header" style="${headerStyle}">${ts}</div><div class="card-body">${assigns.join('<br>')}</div></div>`;
+                    }
+                }
                 fullHtml += `</div></div></details>`;
              });
              containerEl.innerHTML = fullHtml;
@@ -1138,12 +1241,21 @@
 
         document.addEventListener("DOMContentLoaded", function() {
             loadCourses();
+            loadCustomSlots(); // NEW: Load custom slots on startup
             loadAssignments();
-            updateSchedulerUI(); // Ensure UI updates after assignments load
+            updateSchedulerUI();
             
             try { const blob = new Blob([workerCode], { type: 'application/javascript' }); workerObjectURL = URL.createObjectURL(blob); } catch(e) { console.error(e); }
+            
+            // Course handlers
             document.getElementById("add-course-btn").addEventListener('click', addCourse);
             document.getElementById("course-name-input").addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addCourse(); } });
+            
+            // Custom Slot handlers (NEW)
+            document.getElementById("add-timeslot-btn").addEventListener('click', addTimeSlot);
+            document.getElementById("timeslot-name-input").addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addTimeSlot(); } });
+
+            // File Upload handler
             document.getElementById("file-uploader").addEventListener('change', async (event) => {
                 const file = event.target.files[0];
                 if (!file) return;
@@ -1242,37 +1354,6 @@
                 timerInterval = setInterval(() => { document.getElementById("timer-label").textContent = formatTime((performance.now() - startTime) / 1000); }, 100);
 
                 try { currentWorker = new Worker(workerObjectURL); } catch(e) { console.error(e); return; }
-
-                currentWorker.onmessage = (event) => {
-                    const data = event.data;
-                    if (data.type === 'progressUpdate') {
-                        const pct = ((data.facultyIndex / (data.totalToAssign || 1)) * 100).toFixed(1);
-                        document.getElementById("progress-bar").style.width = pct + '%';
-                        document.getElementById("progress-label").textContent = `Optimizing... (${pct}%)`;
-                        document.getElementById("combo-label").textContent = `Combinations: ${data.combinations.toLocaleString()}`;
-                    } else if (data.type === 'solutionUpdate') {
-                        if (data.score < progressState.bestScore) {
-                            progressState.bestScore = data.score;
-                            bestKnownSchedule = new Map(data.schedule);
-                            singleArea.innerHTML = '<h3 style="border-bottom:1px solid #ccc;">New Best Solution!</h3>';
-                            renderSingleSchedule(bestKnownSchedule, allTimeSlots, allLectureSlots, singleArea);
-                            statusEl.textContent = `New best found! Conflicts: ${progressState.bestScore}.`;
-                            statusEl.className = "improved";
-                        }
-                    } else if (data.type === 'complete') {
-                        clearInterval(timerInterval);
-                        document.getElementById("progress-container").style.display = 'none';
-                        const dur = (performance.now() - startTime) / 1000;
-                        statusEl.textContent = `Complete. Final conflicts: ${progressState.bestScore}. (${dur.toFixed(1)}s)`;
-                        statusEl.className = "success";
-                        if (data.finalScore < bestHeuristic.numUnhappy) {
-                             singleArea.innerHTML = '<h3 style="border-bottom:1px solid #ccc;">Final Optimal Solution</h3>';
-                             renderSingleSchedule(bestKnownSchedule, allTimeSlots, allLectureSlots, singleArea);
-                        } else {
-                             singleArea.innerHTML = '<h3 style="border-bottom:1px solid #ccc;">Heuristic Solution (Was Optimal)</h3>';
-                        }
-                    }
-                };
 
                 currentWorker.postMessage({
                      allFaculty: workerFacultyList,
