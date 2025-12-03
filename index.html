@@ -197,7 +197,6 @@
             <div id="parse-status">Please select a file to begin.</div>
         </div>
 
-        <!-- NEW: Hardcode Section -->
         <div id="hardcode-section">
             <h3>Hardcode Courses (Pre-assign)</h3>
             <p style="font-size: 0.9em; color: #555; margin-bottom:10px;">
@@ -909,14 +908,26 @@
                 <button class="remove-hc" onclick="this.parentElement.remove()">×</button>
             `;
             
-            // Add Change Listener for 5-Day Validation
-            div.querySelector(".hc-timeslot").addEventListener("change", () => validateFiveDayRule(div.querySelector(".hc-course").value));
-            div.querySelector(".hc-course").addEventListener("change", (e) => validateFiveDayRule(e.target.value));
+            const tsSelect = div.querySelector(".hc-timeslot");
+            const facSelect = div.querySelector(".hc-course");
+
+            // Define a combined checker function
+            const runChecks = () => {
+                const facValue = facSelect.value;
+                if (facValue) {
+                    validateFiveDayRule(facValue);
+                    validateHardcodeConflicts(); // Check for overlaps
+                }
+            };
+
+            // Add Change Listeners
+            tsSelect.addEventListener("change", runChecks);
+            facSelect.addEventListener("change", runChecks);
 
             container.appendChild(div);
         }
         
-        // Validation for Hardcode Section
+        // Validation for Hardcode Section (5-Day Rule)
         function validateFiveDayRule(facultyKey) {
             if(!facultyKey) return;
             const realFac = facultyKey.split('||')[0];
@@ -938,12 +949,55 @@
             
             if (uniqueDays.size >= 5) {
                 alert(`Warning: Faculty '${realFac}' is assigned to teach on all 5 days! This violates the scheduling rule.`);
-                // Reset the select that triggered this? Hard to know exactly which one without passing event context perfectly,
-                // but checking size >= 5 is enough to warn user. They can fix it.
-                // Optionally clear the last changed value:
-                // e.target.value = ""; // But we need event target.
-                // Let's just alert for now as per instructions "display a warning and avoid it" implies we should block it.
             }
+        }
+
+        // NEW: Validation for Overlapping Hardcoded Slots
+        function validateHardcodeConflicts() {
+            const rows = document.querySelectorAll(".hardcode-row");
+            const facultySchedule = new Map(); // Stores [ { start, end, days, slotName } ] per faculty
+
+            rows.forEach(row => {
+                const tsVal = row.querySelector(".hc-timeslot").value;
+                const facVal = row.querySelector(".hc-course").value;
+                
+                if (tsVal && facVal) {
+                    const realFac = facVal.split('||')[0];
+                    const tsObj = parseTimeSlot(tsVal);
+                    
+                    if (tsObj) {
+                        if (!facultySchedule.has(realFac)) {
+                            facultySchedule.set(realFac, []);
+                        }
+                        
+                        // Check against existing slots for this faculty in the hardcode list
+                        const currentAssignments = facultySchedule.get(realFac);
+                        
+                        for (const assigned of currentAssignments) {
+                            // Check Day Overlap
+                            const daysOverlap = tsObj.days.some(d => assigned.days.includes(d));
+                            
+                            if (daysOverlap) {
+                                // Check Time Overlap: (StartA < EndB) and (EndA > StartB)
+                                const timesOverlap = (tsObj.start < assigned.end) && (tsObj.end > assigned.start);
+                                
+                                if (timesOverlap) {
+                                    alert(`Warning: Conflict detected for ${realFac}!\n\nThey are hardcoded for two overlapping slots:\n1. ${assigned.slotName}\n2. ${tsVal}\n\nOne of these slots would be dropped automatically!`);
+                                    return; // Stop checking after first conflict found to avoid spamming alerts
+                                }
+                            }
+                        }
+
+                        // Add to list for next iteration checks
+                        currentAssignments.push({
+                            start: tsObj.start,
+                            end: tsObj.end,
+                            days: tsObj.days,
+                            slotName: tsVal
+                        });
+                    }
+                }
+            });
         }
 
         window.addAssignmentRowToCell = function(buttonEl) { buttonEl.closest('td').querySelector('.assign-container').appendChild(createAssignmentRow()); collectAndSaveAssignments(); updateHardcodeOptions(); }
