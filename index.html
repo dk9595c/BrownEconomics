@@ -1238,14 +1238,48 @@
         function renderAvailabilityPage(allFaculty, teacherAvailabilityMap, container) {
             let htmlContent = `<p style="margin-bottom: 15px; font-style: italic; font-size: 0.9em; padding: 10px; background-color: #f9f9f9; border-radius: 5px;">`;
             htmlContent += `<b>Legend:</b> <span style="color: #D93025; font-weight: bold;">Red text</span> indicates preferred time slots that overlap with each other.</p>`;
-             const sortedFaculty = [...allFaculty].sort();
+            
+            const sortedFaculty = [...allFaculty].sort();
+            
             for (const faculty of sortedFaculty) {
-                const availableSlots = teacherAvailabilityMap.get(faculty) || [];
-                const sortedSlots = [...availableSlots].sort();
+                const rawSlots = teacherAvailabilityMap.get(faculty) || [];
+                
+                // Deduplicate to prevent self-conflicts
+                const uniqueSlots = [...new Set(rawSlots)];
+                const sortedSlots = uniqueSlots.sort();
+                
                 const parsedSlots = sortedSlots.map(s => parseTimeSlot(s)).filter(Boolean);
                 const conflictingSlots = new Set();
-                for (let i = 0; i < parsedSlots.length; i++) { for (let j = i + 1; j < parsedSlots.length; j++) { const slotA = parsedSlots[i]; const slotB = parsedSlots[j]; const daysOverlap = slotA.days.some(day => slotB.days.includes(day)); if (daysOverlap) { const timesOverlap = (slotA.start < slotB.end) && (slotA.end > slotA.start); if (timesOverlap) { conflictingSlots.add(slotA.id); conflictingSlots.add(slotB.id); } } } }
-                const htmlList = sortedSlots.map(slotString => { if (conflictingSlots.has(slotString)) { return `<span style="color: #D93025; font-weight: bold;">${slotString}</span>`; } else { return slotString; } });
+
+                for (let i = 0; i < parsedSlots.length; i++) {
+                    for (let j = i + 1; j < parsedSlots.length; j++) {
+                        const slotA = parsedSlots[i];
+                        const slotB = parsedSlots[j];
+                        
+                        const daysOverlap = slotA.days.some(day => slotB.days.includes(day));
+                        
+                        if (daysOverlap) {
+                            // --- FIX IS HERE ---
+                            // Old (Bugged): (slotA.end > slotA.start)
+                            // New (Fixed):  (slotA.end > slotB.start)
+                            const timesOverlap = (slotA.start < slotB.end) && (slotA.end > slotB.start);
+                            
+                            if (timesOverlap) {
+                                conflictingSlots.add(slotA.id);
+                                conflictingSlots.add(slotB.id);
+                            }
+                        }
+                    }
+                }
+
+                const htmlList = sortedSlots.map(slotString => {
+                    if (conflictingSlots.has(slotString)) {
+                        return `<span style="color: #D93025; font-weight: bold;">${slotString}</span>`;
+                    } else {
+                        return slotString;
+                    }
+                });
+                
                 htmlContent += `<div class="schedule-card"><div class="card-header">${faculty}</div><div class="card-body">${htmlList.join('<br>')}</div></div>`;
             }
             container.innerHTML = htmlContent;
