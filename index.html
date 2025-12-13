@@ -345,39 +345,38 @@
             function shuffleArray(array) { for (let i = array.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [array[i], array[j]] = [array[j], array[i]]; } return array; }
             function yieldWorker() { return new Promise(resolve => setTimeout(resolve, 0)); }
             
-            async function solveFullSearchInWorker(allFaculty, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, assignmentDetailsMap, hardcodedAssignments, initialBestScore) {
-                const schedule = new Map(); 
-                const assignedLectureSlots = new Set(); 
-                const facultyTimeSlotMap = new Map();
-                const courseTimeSlotMap = new Map();
-                let initialUnhappy = 0;
+        async function solveFullSearchInWorker(allFaculty, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, assignmentDetailsMap, hardcodedAssignments, initialBestScore) {
+                        const schedule = new Map(); 
+                        const assignedLectureSlots = new Set(); 
+                        const facultyTimeSlotMap = new Map();
+                        const courseTimeSlotMap = new Map();
+                        let initialUnhappy = 0;
 
-                // PRE-PROCESS HARDCODED
-                for (const item of hardcodedAssignments) {
-                    const tsName = item.ts;
-                    const facKey = item.fac;
-                    
-                    const realFac = facKey.split('||')[0];
-                    const courseName = assignmentDetailsMap.get(facKey);
-                    const tsObj = parseTimeSlot(tsName);
-                    
-                    // NOTE: Hardcoded slots *must* be treated as virtual lectures as they do not consume real room capacity
-                    // We only need the time slot object for conflict checking.
-                    const virtualLecture = { id: tsName + " (Hardcoded)", timeSlot: tsName, timeSlotObject: tsObj };
-                    const prefSet = facultyPreferredSlots.get(realFac) || new Set();
-                    const isHappy = prefSet.has(tsName);
-                    
-                    schedule.set(facKey, { lecture: virtualLecture, isHappy: isHappy });
-                    
-                    let fSlots = facultyTimeSlotMap.get(realFac) || [];
-                    fSlots.push(tsObj);
-                    facultyTimeSlotMap.set(realFac, fSlots);
+                        // PRE-PROCESS HARDCODED
+                        for (const item of hardcodedAssignments) {
+                            const tsName = item.ts;
+                            const facKey = item.fac;
+                            
+                            const realFac = facKey.split('||')[0];
+                            const courseName = assignmentDetailsMap.get(facKey);
+                            const tsObj = parseTimeSlot(tsName);
+                            
+                            const virtualLecture = { id: tsName + " (Hardcoded)", timeSlot: tsName, timeSlotObject: tsObj };
+                            
+                            // CHANGE: Hardcoded is always happy in Worker too
+                            const isHappy = true; 
+                            
+                            schedule.set(facKey, { lecture: virtualLecture, isHappy: isHappy });
+                            
+                            let fSlots = facultyTimeSlotMap.get(realFac) || [];
+                            fSlots.push(tsObj);
+                            facultyTimeSlotMap.set(realFac, fSlots);
 
-                    if (!courseTimeSlotMap.has(courseName)) courseTimeSlotMap.set(courseName, []);
-                    courseTimeSlotMap.get(courseName).push(tsObj);
+                            if (!courseTimeSlotMap.has(courseName)) courseTimeSlotMap.set(courseName, []);
+                            courseTimeSlotMap.get(courseName).push(tsObj);
 
-                    if (!isHappy) initialUnhappy++;
-                }
+                            
+                        }
 
                 const unassignedFaculty = allFaculty.filter(f => !schedule.has(f));
                 
@@ -541,139 +540,139 @@
             return uniqueDays.size >= 5;
         }
 
-        // --- HEURISTICS ---
         function runHeuristic(strategy, allFaculty, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, assignmentDetailsMap, hardcodedAssignments) {
-            const schedule = new Map();
-            const assignedLectureSlots = new Set();
-            const facultyTimeSlotMap = new Map();
-            const courseTimeSlotMap = new Map();
-            let numUnhappy = 0;
+                    const schedule = new Map();
+                    const assignedLectureSlots = new Set();
+                    const facultyTimeSlotMap = new Map();
+                    const courseTimeSlotMap = new Map();
+                    let numUnhappy = 0;
 
-            const lectureSlotsByTime = new Map();
-            for (const l of allLectureSlots) {
-                if (!lectureSlotsByTime.has(l.timeSlot)) lectureSlotsByTime.set(l.timeSlot, []);
-                lectureSlotsByTime.get(l.timeSlot).push(l);
-            }
+                    const lectureSlotsByTime = new Map();
+                    for (const l of allLectureSlots) {
+                        if (!lectureSlotsByTime.has(l.timeSlot)) lectureSlotsByTime.set(l.timeSlot, []);
+                        lectureSlotsByTime.get(l.timeSlot).push(l);
+                    }
 
-            // 1. Process Hardcoded
-            for (const item of hardcodedAssignments) {
-                const tsName = item.ts;
-                const facKey = item.fac;
-                const realFac = facKey.split('||')[0];
-                const courseName = assignmentDetailsMap.get(facKey);
-                const tsObj = parseTimeSlot(tsName);
-                const virtualLecture = { id: tsName + " (Hardcoded)", timeSlot: tsName, timeSlotObject: tsObj };
-                const prefSet = facultyPreferredSlots.get(realFac) || new Set();
-                const isHappy = prefSet.has(tsName);
-                
-                schedule.set(facKey, { lecture: virtualLecture, isHappy: isHappy });
-                
-                let fSlots = facultyTimeSlotMap.get(realFac) || [];
-                fSlots.push(tsObj);
-                facultyTimeSlotMap.set(realFac, fSlots);
+                    // 1. Process Hardcoded
+                    for (const item of hardcodedAssignments) {
+                        const tsName = item.ts;
+                        const facKey = item.fac;
+                        const realFac = facKey.split('||')[0];
+                        const courseName = assignmentDetailsMap.get(facKey);
+                        const tsObj = parseTimeSlot(tsName);
+                        const virtualLecture = { id: tsName + " (Hardcoded)", timeSlot: tsName, timeSlotObject: tsObj };
+                        
+                        // CHANGE: Force hardcoded assignments to be "Happy" so they don't count as conflicts
+                        const isHappy = true;
+                        
+                        schedule.set(facKey, { lecture: virtualLecture, isHappy: isHappy });
+                        
+                        let fSlots = facultyTimeSlotMap.get(realFac) || [];
+                        fSlots.push(tsObj);
+                        facultyTimeSlotMap.set(realFac, fSlots);
 
-                if (!courseTimeSlotMap.has(courseName)) courseTimeSlotMap.set(courseName, []);
-                courseTimeSlotMap.get(courseName).push(tsObj);
+                        if (!courseTimeSlotMap.has(courseName)) courseTimeSlotMap.set(courseName, []);
+                        courseTimeSlotMap.get(courseName).push(tsObj);
 
-                if (!isHappy) numUnhappy++;
-            }
+                        // REMOVED: if (!isHappy) numUnhappy++; (Hardcoded never adds to conflict count now)
+                    }
 
-            // 2. Sort Remaining
-            const unassignedFaculty = allFaculty.filter(f => !schedule.has(f));
-            let sortedFaculty = [...unassignedFaculty];
+                    // 2. Sort Remaining
+                    const unassignedFaculty = allFaculty.filter(f => !schedule.has(f));
+                    let sortedFaculty = [...unassignedFaculty];
 
-            if (strategy === 'MRV' || strategy === 'NO_LIMIT') {
-                sortedFaculty.sort((a, b) => {
-                    const realA = a.split('||')[0]; const realB = b.split('||')[0];
-                    return (teacherAvailabilityMap.get(realA)?.length || 0) - (teacherAvailabilityMap.get(realB)?.length || 0);
-                });
-            } else {
-                shuffleArray(sortedFaculty);
-            }
+                    if (strategy === 'MRV' || strategy === 'NO_LIMIT') {
+                        sortedFaculty.sort((a, b) => {
+                            const realA = a.split('||')[0]; const realB = b.split('||')[0];
+                            return (teacherAvailabilityMap.get(realA)?.length || 0) - (teacherAvailabilityMap.get(realB)?.length || 0);
+                        });
+                    } else {
+                        shuffleArray(sortedFaculty);
+                    }
 
-            // Scarcity Map
-            const slotRoomCount = new Map();
-            if (strategy === 'SCARCITY') {
-                for (const [ts, lectures] of lectureSlotsByTime.entries()) {
-                    slotRoomCount.set(ts, lectures.length);
-                }
-            }
-
-            for (const facultyKey of sortedFaculty) {
-                const realFac = facultyKey.split('||')[0];
-                const currentCourse = assignmentDetailsMap.get(facultyKey);
-                const assignedSlots = facultyTimeSlotMap.get(realFac) || [];
-                const prefSet = facultyPreferredSlots.get(realFac) || new Set();
-                let potentialAssignments = [];
-
-                // Valid slots
-                for (const l of allLectureSlots) {
-                    let isFiveDayOk = true;
-                    // Strategy 4 (NO_LIMIT) ignores the 5-day check
-                    if (strategy !== 'NO_LIMIT') {
-                        if (causesFiveDayViolation(l.timeSlotObject, assignedSlots)) {
-                            isFiveDayOk = false;
+                    // Scarcity Map
+                    const slotRoomCount = new Map();
+                    if (strategy === 'SCARCITY') {
+                        for (const [ts, lectures] of lectureSlotsByTime.entries()) {
+                            slotRoomCount.set(ts, lectures.length);
                         }
                     }
 
-                    if (isFiveDayOk &&
-                        !assignedLectureSlots.has(l.id) &&
-                        !hasConflict(l.timeSlotObject, assignedSlots) &&
-                        !hasCourseConflictMain(l.timeSlotObject, currentCourse, courseTimeSlotMap)) {
-                        
-                        const isHappy = prefSet.has(l.timeSlot);
-                        let heuristicValue = 0;
+                    for (const facultyKey of sortedFaculty) {
+                        const realFac = facultyKey.split('||')[0];
+                        const currentCourse = assignmentDetailsMap.get(facultyKey);
+                        const assignedSlots = facultyTimeSlotMap.get(realFac) || [];
+                        const prefSet = facultyPreferredSlots.get(realFac) || new Set();
+                        let potentialAssignments = [];
 
-                        if (strategy === 'LCV') {
-                            const unassignedKeys = sortedFaculty.filter(f => !schedule.has(f) && f !== facultyKey);
-                            for (const otherFacKey of unassignedKeys) {
-                                const otherRealFac = otherFacKey.split('||')[0];
-                                const otherPrefSet = facultyPreferredSlots.get(otherRealFac) || new Set();
-                                const otherAssignedSlots = facultyTimeSlotMap.get(otherRealFac) || [];
-                                if (otherPrefSet.has(l.timeSlot) && !hasConflict(l.timeSlotObject, otherAssignedSlots)) {
-                                    heuristicValue++;
+                        // Valid slots
+                        for (const l of allLectureSlots) {
+                            let isFiveDayOk = true;
+                            // Strategy 4 (NO_LIMIT) ignores the 5-day check
+                            if (strategy !== 'NO_LIMIT') {
+                                if (causesFiveDayViolation(l.timeSlotObject, assignedSlots)) {
+                                    isFiveDayOk = false;
                                 }
                             }
-                        } else if (strategy === 'SCARCITY') {
-                            heuristicValue = slotRoomCount.get(l.timeSlot) || Infinity;
+
+                            if (isFiveDayOk &&
+                                !assignedLectureSlots.has(l.id) &&
+                                !hasConflict(l.timeSlotObject, assignedSlots) &&
+                                !hasCourseConflictMain(l.timeSlotObject, currentCourse, courseTimeSlotMap)) {
+                                
+                                const isHappy = prefSet.has(l.timeSlot);
+                                let heuristicValue = 0;
+
+                                if (strategy === 'LCV') {
+                                    const unassignedKeys = sortedFaculty.filter(f => !schedule.has(f) && f !== facultyKey);
+                                    for (const otherFacKey of unassignedKeys) {
+                                        const otherRealFac = otherFacKey.split('||')[0];
+                                        const otherPrefSet = facultyPreferredSlots.get(otherRealFac) || new Set();
+                                        const otherAssignedSlots = facultyTimeSlotMap.get(otherRealFac) || [];
+                                        if (otherPrefSet.has(l.timeSlot) && !hasConflict(l.timeSlotObject, otherAssignedSlots)) {
+                                            heuristicValue++;
+                                        }
+                                    }
+                                } else if (strategy === 'SCARCITY') {
+                                    heuristicValue = slotRoomCount.get(l.timeSlot) || Infinity;
+                                }
+
+                                potentialAssignments.push({ lecture: l, isHappy: isHappy, val: heuristicValue });
+                            }
                         }
 
-                        potentialAssignments.push({ lecture: l, isHappy: isHappy, val: heuristicValue });
+                        if (potentialAssignments.length > 0) {
+                            if (strategy === 'MRV' || strategy === 'NO_LIMIT') {
+                                const happy = potentialAssignments.filter(p => p.isHappy);
+                                if(happy.length > 0) { shuffleArray(happy); potentialAssignments = happy; }
+                                else { shuffleArray(potentialAssignments); }
+                            } else {
+                                potentialAssignments.sort((a, b) => {
+                                    if (b.isHappy !== a.isHappy) return b.isHappy - a.isHappy;
+                                    return a.val - b.val;
+                                });
+                            }
+
+                            const chosen = potentialAssignments[0].lecture;
+                            const isHappy = potentialAssignments[0].isHappy;
+                            schedule.set(facultyKey, { lecture: chosen, isHappy: isHappy });
+                            assignedLectureSlots.add(chosen.id);
+                            
+                            const fSlots = facultyTimeSlotMap.get(realFac) || [];
+                            fSlots.push(chosen.timeSlotObject);
+                            facultyTimeSlotMap.set(realFac, fSlots);
+
+                            if (!courseTimeSlotMap.has(currentCourse)) courseTimeSlotMap.set(currentCourse, []);
+                            courseTimeSlotMap.get(currentCourse).push(chosen.timeSlotObject);
+
+                            if (!isHappy) numUnhappy++;
+                        } else {
+                            numUnhappy += 999;
+                        }
                     }
+
+                    return { schedule, numUnhappy };
                 }
-
-                if (potentialAssignments.length > 0) {
-                    if (strategy === 'MRV' || strategy === 'NO_LIMIT') {
-                        const happy = potentialAssignments.filter(p => p.isHappy);
-                        if(happy.length > 0) { shuffleArray(happy); potentialAssignments = happy; }
-                        else { shuffleArray(potentialAssignments); }
-                    } else {
-                        potentialAssignments.sort((a, b) => {
-                            if (b.isHappy !== a.isHappy) return b.isHappy - a.isHappy;
-                            return a.val - b.val;
-                        });
-                    }
-
-                    const chosen = potentialAssignments[0].lecture;
-                    const isHappy = potentialAssignments[0].isHappy;
-                    schedule.set(facultyKey, { lecture: chosen, isHappy: isHappy });
-                    assignedLectureSlots.add(chosen.id);
-                    
-                    const fSlots = facultyTimeSlotMap.get(realFac) || [];
-                    fSlots.push(chosen.timeSlotObject);
-                    facultyTimeSlotMap.set(realFac, fSlots);
-
-                    if (!courseTimeSlotMap.has(currentCourse)) courseTimeSlotMap.set(currentCourse, []);
-                    courseTimeSlotMap.get(currentCourse).push(chosen.timeSlotObject);
-
-                    if (!isHappy) numUnhappy++;
-                } else {
-                    numUnhappy += 999;
-                }
-            }
-
-            return { schedule, numUnhappy };
-        }
 
 
         // --- GLOBAL STATE ---
