@@ -1378,21 +1378,41 @@
                 // 3. Run Heuristics (Main Thread)
                 const heuristicResults = [];
                 
-                // Strategy 1 (Enforces 5-day rule)
-                const h1 = runHeuristic('MRV', workerFacultyList, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, assignmentDetailsMap, hardcodedAssignments);
-                heuristicResults.push({ name: `Strategy 1: MRV + Happy First (Conflicts: ${h1.numUnhappy})`, description: "MRV + Happy First. <b>Ensures no 5-day weeks.</b>", schedule: h1.schedule, numUnhappy: h1.numUnhappy });
-                
-                // Strategy 2 (Enforces 5-day rule)
-                const h2 = runHeuristic('LCV', workerFacultyList, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, assignmentDetailsMap, hardcodedAssignments);
-                heuristicResults.push({ name: `Strategy 2: MRV + LCV (Conflicts: ${h2.numUnhappy})`, description: "MRV + LCV. <b>Ensures no 5-day weeks.</b>", schedule: h2.schedule, numUnhappy: h2.numUnhappy });
+                // Strategy 1: Prioritize Hardest-to-Schedule
+                                const h1 = runHeuristic('MRV', workerFacultyList, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, assignmentDetailsMap, hardcodedAssignments);
+                                heuristicResults.push({
+                                    name: `Strategy 1: Prioritize Hardest-to-Schedule (Conflicts: ${h1.numUnhappy})`,
+                                    description: "<b>How it works:</b> This strategy identifies faculty members with the fewest available time slots (the most restricted schedules) and assigns them first. It prioritizes their preferred happy slots. <br><b>Why use it:</b> It prevents the system from painting itself into a corner by leaving difficult faculty for the end when no good slots remain. It strictly enforces the 5-day work week limit.",
+                                    schedule: h1.schedule,
+                                    numUnhappy: h1.numUnhappy
+                                });
+                                
+                                // Strategy 2: Maximize Future Flexibility
+                                const h2 = runHeuristic('LCV', workerFacultyList, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, assignmentDetailsMap, hardcodedAssignments);
+                                heuristicResults.push({
+                                    name: `Strategy 2: Maximize Future Flexibility (Conflicts: ${h2.numUnhappy})`,
+                                    description: "<b>How it works:</b> Like Strategy 1, this tackles restricted faculty first. However, when choosing a time slot, it calculates which slot effectively leaves the most doors open for the remaining unassigned colleagues (Least Constraining Value). <br><b>Why use it:</b> This is often the smartest approach for complex schedules, as it tries to avoid making selfish choices early on that block everyone else.",
+                                    schedule: h2.schedule,
+                                    numUnhappy: h2.numUnhappy
+                                });
 
-                // Strategy 3 (Enforces 5-day rule)
-                const h3 = runHeuristic('SCARCITY', workerFacultyList, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, assignmentDetailsMap, hardcodedAssignments);
-                heuristicResults.push({ name: `Strategy 3: MRV + Scarcity (Conflicts: ${h3.numUnhappy})`, description: "MRV + Scarcity. <b>Ensures no 5-day weeks.</b>", schedule: h3.schedule, numUnhappy: h3.numUnhappy });
+                                // Strategy 3: Room Scarcity Optimization
+                                const h3 = runHeuristic('SCARCITY', workerFacultyList, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, assignmentDetailsMap, hardcodedAssignments);
+                                heuristicResults.push({
+                                    name: `Strategy 3: Room Scarcity Optimization (Conflicts: ${h3.numUnhappy})`,
+                                    description: "<b>How it works:</b> This approach prioritizes filling time slots that have fewer total rooms available. <br><b>Why use it:</b> By consuming the rare time slots early with faculty who can use them, it saves the abundant time slots (with many rooms) for the rest of the faculty, balancing the load across the week.",
+                                    schedule: h3.schedule,
+                                    numUnhappy: h3.numUnhappy
+                                });
 
-                // NEW: Strategy 4 (IGNORES 5-day rule)
-                const h4 = runHeuristic('NO_LIMIT', workerFacultyList, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, assignmentDetailsMap, hardcodedAssignments);
-                heuristicResults.push({ name: `Strategy 4: MRV + Happy (No 5-Day Limit) (Conflicts: ${h4.numUnhappy})`, description: "Standard MRV + Happy First, but <b>ignores the 5-day work week limit</b>. Use this to see if the constraint is causing high conflict scores.", schedule: h4.schedule, numUnhappy: h4.numUnhappy });
+                                // Strategy 4: Relaxed Constraints
+                                const h4 = runHeuristic('NO_LIMIT', workerFacultyList, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, assignmentDetailsMap, hardcodedAssignments);
+                                heuristicResults.push({
+                                    name: `Strategy 4: Relaxed Constraints (Allow 5-Day Week) (Conflicts: ${h4.numUnhappy})`,
+                                    description: "<b>How it works:</b> This runs the standard prioritization algorithm but <b>ignores the rule against teaching 5 days a week</b> (Mon-Fri). <br><b>Why use it:</b> Use this as a diagnostic tool. If this strategy has significantly fewer conflicts than the others, it confirms that the No 5-Day Week rule is the primary bottleneck in your schedule.",
+                                    schedule: h4.schedule,
+                                    numUnhappy: h4.numUnhappy
+                                });
 
                 multiArea.innerHTML = '<h3 style="border-bottom:1px solid #ccc;">Heuristic Pre-Check</h3>';
                 renderMultipleHeuristics(heuristicResults, allTimeSlots, allLectureSlots, multiArea);
