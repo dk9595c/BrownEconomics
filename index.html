@@ -139,7 +139,27 @@
             cursor: pointer;
             font-weight: bold;
         }
-        
+        /* NEW: Freeze Button Style (Fixed Box) */
+                .freeze-btn {
+                    background-color: #fff;
+                    border: 1px solid #999; /* Creates the box outline */
+                    border-radius: 3px;
+                    cursor: pointer;
+                    font-size: 14px;
+                    width: 24px;       /* Fixed width */
+                    height: 24px;      /* Fixed height */
+                    line-height: 22px; /* Centers the snowflake vertically */
+                    text-align: center;
+                    margin-left: 8px;
+                    padding: 0;
+                    vertical-align: middle;
+                    display: inline-block;
+                    transition: all 0.2s;
+                }
+                .freeze-btn:hover {
+                    border-color: #004a9c;
+                    background-color: #f0f8ff;
+                }
         #assignment-message {
             margin-bottom: 15px;
             padding: 10px;
@@ -345,13 +365,40 @@
             function shuffleArray(array) { for (let i = array.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [array[i], array[j]] = [array[j], array[i]]; } return array; }
             function yieldWorker() { return new Promise(resolve => setTimeout(resolve, 0)); }
             
-        async function solveFullSearchInWorker(allFaculty, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, assignmentDetailsMap, hardcodedAssignments, initialBestScore) {
+        async function solveFullSearchInWorker(allFaculty, allLectureSlots, frozenAssignments, teacherAvailabilityMap, facultyPreferredSlots, assignmentDetailsMap, hardcodedAssignments, initialBestScore) {
                         const schedule = new Map(); 
                         const assignedLectureSlots = new Set(); 
                         const facultyTimeSlotMap = new Map();
                         const courseTimeSlotMap = new Map();
                         let initialUnhappy = 0;
 
+        // --- NEW: Process Frozen Assignments FIRST ---
+            // This ensures they consume the specific room immediately
+            for (const [facKey, lectureId] of frozenAssignments) {
+                // Find the exact lecture object (matches Time AND Room)
+                const lecture = allLectureSlots.find(l => l.id === lectureId);
+                
+                if (lecture) {
+                    const realFac = facKey.split('||')[0];
+                    const courseName = assignmentDetailsMap.get(facKey);
+                    
+                    // Assign it
+                    schedule.set(facKey, { lecture: lecture, isHappy: true }); // Frozen is always "Happy"
+                    
+                    // CRITICAL: Mark this room/slot as TAKEN
+                    assignedLectureSlots.add(lecture.id); 
+                    
+                    // Update constraints so this faculty isn't double booked
+                    let fSlots = facultyTimeSlotMap.get(realFac) || [];
+                    fSlots.push(lecture.timeSlotObject);
+                    facultyTimeSlotMap.set(realFac, fSlots);
+
+                    if (courseName) {
+                        if (!courseTimeSlotMap.has(courseName)) courseTimeSlotMap.set(courseName, []);
+                        courseTimeSlotMap.get(courseName).push(lecture.timeSlotObject);
+                    }
+                }
+            }
                         // PRE-PROCESS HARDCODED
                         for (const item of hardcodedAssignments) {
                             const tsName = item.ts;
@@ -448,29 +495,32 @@
             }
             
             self.onmessage = async (event) => {
-                parseTimeSlotCache.clear(); 
-                const { allFaculty, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, assignmentDetails, hardcodedAssignments, initialBestScore } = event.data;
-                try {
-                    const reconstructedTeacherAvailabilityMap = new Map(teacherAvailabilityMap);
-                    const reconstructedFacultyPreferredSlots = new Map(facultyPreferredSlots.map(([k, v]) => [k, new Set(v)]));
-                    const assignmentDetailsMap = new Map(assignmentDetails); 
-                    const allLectureSlotsParsed = allLectureSlots.map(l => ({
-                        ...l,
-                        timeSlotObject: parseTimeSlot(l.timeSlot) 
-                    })).filter(l => l.timeSlotObject); 
+                            parseTimeSlotCache.clear(); 
+                            // Ensure frozenAssignments is destructured here
+                            const { allFaculty, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, assignmentDetails, hardcodedAssignments, frozenAssignments, initialBestScore } = event.data;
+                            try {
+                                const reconstructedTeacherAvailabilityMap = new Map(teacherAvailabilityMap);
+                                const reconstructedFacultyPreferredSlots = new Map(facultyPreferredSlots.map(([k, v]) => [k, new Set(v)]));
+                                const assignmentDetailsMap = new Map(assignmentDetails); 
+                                const allLectureSlotsParsed = allLectureSlots.map(l => ({
+                                    ...l,
+                                    timeSlotObject: parseTimeSlot(l.timeSlot) 
+                                })).filter(l => l.timeSlotObject); 
 
-                    const result = await solveFullSearchInWorker(
-                        allFaculty, 
-                        allLectureSlotsParsed, 
-                        reconstructedTeacherAvailabilityMap, 
-                        reconstructedFacultyPreferredSlots, 
-                        assignmentDetailsMap,
-                        hardcodedAssignments,
-                        initialBestScore
-                    );
-                    self.postMessage({ type: 'complete', ...result });
-                } catch (error) { console.error("Error in worker:", error); self.postMessage({ type: 'error', message: error.message }); }
-            };
+                                // FIX: Pass arguments in the exact order defined in solveFullSearchInWorker
+                                const result = await solveFullSearchInWorker(
+                                    allFaculty, 
+                                    allLectureSlotsParsed, 
+                                    frozenAssignments, // <--- This was missing/misplaced
+                                    reconstructedTeacherAvailabilityMap, 
+                                    reconstructedFacultyPreferredSlots, 
+                                    assignmentDetailsMap,
+                                    hardcodedAssignments,
+                                    initialBestScore
+                                );
+                                self.postMessage({ type: 'complete', ...result });
+                            } catch (error) { console.error("Error in worker:", error); self.postMessage({ type: 'error', message: error.message }); }
+                        };
         `;
 
         // --- GLOBAL HELPER ---
@@ -546,7 +596,33 @@
                     const facultyTimeSlotMap = new Map();
                     const courseTimeSlotMap = new Map();
                     let numUnhappy = 0;
+                    // --- NEW: Process Frozen Assignments FIRST ---
+                        // This ensures they consume the specific room immediately
+                        for (const [facKey, lectureId] of frozenAssignments) {
+                            // Find the exact lecture object (matches Time AND Room)
+                            const lecture = allLectureSlots.find(l => l.id === lectureId);
+                            
+                            if (lecture) {
+                                const realFac = facKey.split('||')[0];
+                                const courseName = assignmentDetailsMap.get(facKey);
+                                
+                                // Assign it
+                                schedule.set(facKey, { lecture: lecture, isHappy: true }); // Frozen is always "Happy"
+                                
+                                // CRITICAL: Mark this room/slot as TAKEN
+                                assignedLectureSlots.add(lecture.id);
+                                
+                                // Update constraints so this faculty isn't double booked
+                                let fSlots = facultyTimeSlotMap.get(realFac) || [];
+                                fSlots.push(lecture.timeSlotObject);
+                                facultyTimeSlotMap.set(realFac, fSlots);
 
+                                if (courseName) {
+                                    if (!courseTimeSlotMap.has(courseName)) courseTimeSlotMap.set(courseName, []);
+                                    courseTimeSlotMap.get(courseName).push(lecture.timeSlotObject);
+                                }
+                            }
+                        }
                     const lectureSlotsByTime = new Map();
                     for (const l of allLectureSlots) {
                         if (!lectureSlotsByTime.has(l.timeSlot)) lectureSlotsByTime.set(l.timeSlot, []);
@@ -782,6 +858,41 @@
         }
         function saveAssignments() { localStorage.setItem(FACULTY_ASSIGNMENT_KEY, JSON.stringify(Array.from(facultyAssignments.entries()))); }
 
+        // --- NEW: Global State for Frozen Assignments ---
+                const FROZEN_KEY = 'facultySchedulerFrozen';
+                let frozenAssignments = new Map();
+
+                function loadFrozen() {
+                    try {
+                        frozenAssignments = new Map(JSON.parse(localStorage.getItem(FROZEN_KEY)) || []);
+                    } catch { frozenAssignments = new Map(); }
+                }
+
+                function saveFrozen() {
+                    localStorage.setItem(FROZEN_KEY, JSON.stringify(Array.from(frozenAssignments.entries())));
+                }
+
+        window.toggleFreeze = function(facultyKey, lectureId) {
+                    if (frozenAssignments.has(facultyKey) && frozenAssignments.get(facultyKey) === lectureId) {
+                        frozenAssignments.delete(facultyKey);
+                    } else {
+                        frozenAssignments.set(facultyKey, lectureId);
+                    }
+                    saveFrozen();
+                    
+                    // Visual feedback
+                    const btn = document.activeElement;
+                    if(btn && btn.tagName === 'BUTTON') {
+                        const isFrozen = frozenAssignments.has(facultyKey);
+                        
+                        // CHANGE: Use "" (empty) for blank box, ❄️ for frozen
+                        btn.textContent = isFrozen ? "❄️" : "";
+                        btn.title = isFrozen ? "Unfreeze" : "Freeze (Lock Room)";
+                        
+                        if (btn.parentElement) btn.parentElement.classList.toggle("frozen");
+                    }
+                }
+        
         async function parseExcelFile(file) {
             parseTimeSlotCache.clear();
             return new Promise((resolve, reject) => {
@@ -1143,96 +1254,125 @@
         }
 
         function renderSingleSchedule(schedule, allTimeSlots, allLectureSlots, containerEl) {
-            // Get all available time slots (Excel + Custom)
-            const allAvailableSlots = new Set(allTimeSlots);
-            customTimeSlots.forEach(slot => allAvailableSlots.add(slot.name));
-            
-            const assignedMap = new Map();
-            for (const [f, a] of schedule.entries()) { assignedMap.set(a.lecture.id, { faculty: f, isHappy: a.isHappy }); }
-            const tsGroup = new Map();
-            for (const ts of allAvailableSlots) { tsGroup.set(ts, []); } // Initialize with all slots
-            
-            // Process real lecture slots
-            for (const l of allLectureSlots) {
-                const rName = l.id.substring(l.timeSlot.length).trim();
-                const assign = assignedMap.get(l.id);
-                let assignStr;
-                if (assign) {
-                    const uhCls = assign.isHappy ? '' : 'class="unhappy"';
-                    assignStr = `${rName}: <strong ${uhCls}>${getLabel(assign.faculty)}</strong>`;
-                } else { assignStr = `${rName}: <em>(Unassigned)</em>`; }
-                tsGroup.get(l.timeSlot).push(assignStr);
-            }
-            
-            // Process hardcoded slots (including custom slots)
-            for (const [fac, data] of schedule.entries()) {
-                if (data.lecture.id.includes("(Hardcoded)")) {
-                    const entry = `Hardcoded: <strong class="hardcoded">${getLabel(fac)}</strong>`;
-                    if(tsGroup.has(data.lecture.timeSlot)) {
-                        tsGroup.get(data.lecture.timeSlot).unshift(entry);
+                    const allAvailableSlots = new Set(allTimeSlots);
+                    customTimeSlots.forEach(slot => allAvailableSlots.add(slot.name));
+                    
+                    const assignedMap = new Map();
+                    for (const [f, a] of schedule.entries()) {
+                        assignedMap.set(a.lecture.id, { faculty: f, isHappy: a.isHappy, lecture: a.lecture });
                     }
-                }
-            }
+                    
+                    const tsGroup = new Map();
+                    for (const ts of allAvailableSlots) { tsGroup.set(ts, []); }
+                    
+                    for (const l of allLectureSlots) {
+                        const rName = l.id.substring(l.timeSlot.length).trim();
+                        const assign = assignedMap.get(l.id);
+                        let assignStr;
+                        if (assign) {
+                            const uhCls = assign.isHappy ? '' : 'unhappy';
+                            
+                            const isHardcoded = assign.lecture.id.includes("(Hardcoded)");
+                            const isFrozen = frozenAssignments.has(assign.faculty) && frozenAssignments.get(assign.faculty) === l.id;
+                            const freezeIcon = isFrozen ? "❄️" : "";
+                                                const freezeTitle = isFrozen ? "Unfreeze" : "Freeze (Lock Room)";
+                                                const frozenClass = isFrozen ? "frozen" : "";
+                            
+                            // --- FIX: Escape single quotes for names like O'Malley ---
+                            const safeFac = assign.faculty.replace(/'/g, "\\'");
+                            const safeId = l.id.replace(/'/g, "\\'");
+                            
+                            const freezeBtn = isHardcoded ? '' : `<button class="freeze-btn" onclick="toggleFreeze('${safeFac}', '${safeId}')" title="${freezeTitle}">${freezeIcon}</button>`;
+                            
+                            assignStr = `${rName}: <strong class="${uhCls} ${frozenClass}">${getLabel(assign.faculty)}</strong> ${freezeBtn}`;
+                        } else { assignStr = `${rName}: <em>(Unassigned)</em>`; }
+                        tsGroup.get(l.timeSlot).push(assignStr);
+                    }
+                    
+                    for (const [fac, data] of schedule.entries()) {
+                        if (data.lecture.id.includes("(Hardcoded)")) {
+                            const entry = `Hardcoded: <strong class="hardcoded">${getLabel(fac)}</strong>`;
+                            if(tsGroup.has(data.lecture.timeSlot)) {
+                                tsGroup.get(data.lecture.timeSlot).unshift(entry);
+                            }
+                        }
+                    }
 
-            let htmlContent = `<div class="card-container">`;
-            const sortedTS = [...allAvailableSlots].sort();
-            for (const ts of sortedTS) {
-                const assigns = tsGroup.get(ts) || [];
-                // Only render time slots that actually have content or were defined in Excel
-                if (assigns.length > 0 || allTimeSlots.includes(ts)) {
-                    htmlContent += `<div class="schedule-card"><div class="card-header">${ts}</div><div class="card-body">${assigns.join('<br>')}</div></div>`;
+                    let htmlContent = `<div class="card-container">`;
+                    const sortedTS = [...allAvailableSlots].sort();
+                    for (const ts of sortedTS) {
+                        const assigns = tsGroup.get(ts) || [];
+                        if (assigns.length > 0 || allTimeSlots.includes(ts)) {
+                            htmlContent += `<div class="schedule-card"><div class="card-header">${ts}</div><div class="card-body">${assigns.join('<br>')}</div></div>`;
+                        }
+                    }
+                    htmlContent += `</div>`; containerEl.innerHTML = htmlContent;
                 }
-            }
-            htmlContent += `</div>`; containerEl.innerHTML = htmlContent;
-        }
 
         function renderMultipleHeuristics(results, allTimeSlots, allLectureSlots, containerEl) {
-             const schemes = [{ headerBg: '#f0f6ff', headerColor: '#004a9c', cardBorder: '#b8daff' }, { headerBg: '#f0fff0', headerColor: '#155724', cardBorder: '#c3e6cb' }, { headerBg: '#fffaf0', headerColor: '#856404', cardBorder: '#ffeeba' }, { headerBg: '#e6e6e6', headerColor: '#333', cardBorder: '#ccc' }];
-             
-             const allAvailableSlots = new Set(allTimeSlots);
-             customTimeSlots.forEach(slot => allAvailableSlots.add(slot.name));
+                     const schemes = [{ headerBg: '#f0f6ff', headerColor: '#004a9c', cardBorder: '#b8daff' }, { headerBg: '#f0fff0', headerColor: '#155724', cardBorder: '#c3e6cb' }, { headerBg: '#fffaf0', headerColor: '#856404', cardBorder: '#ffeeba' }, { headerBg: '#e6e6e6', headerColor: '#333', cardBorder: '#ccc' }];
+                     
+                     const allAvailableSlots = new Set(allTimeSlots);
+                     customTimeSlots.forEach(slot => allAvailableSlots.add(slot.name));
 
-             let fullHtml = "";
-             results.forEach((result, index) => {
-                const colors = schemes[index % schemes.length];
-                fullHtml += `<details class="heuristic-details"><summary class="heuristic-summary">${result.name}</summary><div class="heuristic-content">`;
-                if(result.description) fullHtml += `<p style="margin-top: 10px; margin-bottom: 20px; font-size: 0.9em; font-style: italic; max-width: 800px; color: #333;">${result.description}</p>`;
-                
-                const assignedMap = new Map(); for (const [f, a] of result.schedule.entries()) { assignedMap.set(a.lecture.id, { faculty: f, isHappy: a.isHappy }); }
-                const tsGroup = new Map(); for (const ts of allAvailableSlots) { tsGroup.set(ts, []); }
-                
-                for (const l of allLectureSlots) {
-                    const rName = l.id.substring(l.timeSlot.length).trim();
-                    const assign = assignedMap.get(l.id);
-                    let assignStr;
-                    if (assign) {
-                        const uhCls = assign.isHappy ? '' : 'class="unhappy"';
-                        assignStr = `${rName}: <strong ${uhCls}>${getLabel(assign.faculty)}</strong>`;
-                    } else { assignStr = `${rName}: <em>(Unassigned)</em>`; }
-                    tsGroup.get(l.timeSlot).push(assignStr);
-                }
-                
-                for (const [fac, data] of result.schedule.entries()) {
-                    if (data.lecture.id.includes("(Hardcoded)")) {
-                        const entry = `Hardcoded: <strong class="hardcoded">${getLabel(fac)}</strong>`;
-                        if(tsGroup.has(data.lecture.timeSlot)) tsGroup.get(data.lecture.timeSlot).unshift(entry);
-                    }
-                }
+                     let fullHtml = "";
+                     results.forEach((result, index) => {
+                        const colors = schemes[index % schemes.length];
+                        fullHtml += `<details class="heuristic-details"><summary class="heuristic-summary">${result.name}</summary><div class="heuristic-content">`;
+                        if(result.description) fullHtml += `<p style="margin-top: 10px; margin-bottom: 20px; font-size: 0.9em; font-style: italic; max-width: 800px; color: #333;">${result.description}</p>`;
+                        
+                        const assignedMap = new Map();
+                        for (const [f, a] of result.schedule.entries()) {
+                            assignedMap.set(a.lecture.id, { faculty: f, isHappy: a.isHappy, lecture: a.lecture });
+                        }
+                        
+                        const tsGroup = new Map(); for (const ts of allAvailableSlots) { tsGroup.set(ts, []); }
+                        
+                        for (const l of allLectureSlots) {
+                            const rName = l.id.substring(l.timeSlot.length).trim();
+                            const assign = assignedMap.get(l.id);
+                            let assignStr;
+                            if (assign) {
+                                const uhCls = assign.isHappy ? '' : 'unhappy';
+                                
+                                const isHardcoded = assign.lecture.id.includes("(Hardcoded)");
+                                const isFrozen = frozenAssignments.has(assign.faculty) && frozenAssignments.get(assign.faculty) === l.id;
+                                const freezeIcon = isFrozen ? "❄️" : "";
+                                const freezeTitle = isFrozen ? "Unfreeze" : "Freeze (Lock Room)";
+                                const frozenClass = isFrozen ? "frozen" : "";
+                                
+                                // --- FIX: Escape single quotes here too ---
+                                const safeFac = assign.faculty.replace(/'/g, "\\'");
+                                const safeId = l.id.replace(/'/g, "\\'");
+                                
+                                const freezeBtn = isHardcoded ? '' : `<button class="freeze-btn" onclick="toggleFreeze('${safeFac}', '${safeId}')" title="${freezeTitle}">${freezeIcon}</button>`;
+                                
+                                assignStr = `${rName}: <strong class="${uhCls} ${frozenClass}">${getLabel(assign.faculty)}</strong> ${freezeBtn}`;
+                            } else { assignStr = `${rName}: <em>(Unassigned)</em>`; }
+                            tsGroup.get(l.timeSlot).push(assignStr);
+                        }
+                        
+                        for (const [fac, data] of result.schedule.entries()) {
+                            if (data.lecture.id.includes("(Hardcoded)")) {
+                                const entry = `Hardcoded: <strong class="hardcoded">${getLabel(fac)}</strong>`;
+                                if(tsGroup.has(data.lecture.timeSlot)) tsGroup.get(data.lecture.timeSlot).unshift(entry);
+                            }
+                        }
 
-                fullHtml += `<div class="card-container">`;
-                const sortedTS = [...allAvailableSlots].sort();
-                for (const ts of sortedTS) {
-                    const assigns = tsGroup.get(ts) || [];
-                    if (assigns.length > 0 || allTimeSlots.includes(ts)) {
-                        const cardStyle = `border: 1px solid ${colors.cardBorder};`;
-                        const headerStyle = `background-color: ${colors.headerBg}; color: ${colors.headerColor};`;
-                        fullHtml += `<div class="schedule-card" style="${cardStyle}"><div class="card-header" style="${headerStyle}">${ts}</div><div class="card-body">${assigns.join('<br>')}</div></div>`;
-                    }
+                        fullHtml += `<div class="card-container">`;
+                        const sortedTS = [...allAvailableSlots].sort();
+                        for (const ts of sortedTS) {
+                            const assigns = tsGroup.get(ts) || [];
+                            if (assigns.length > 0 || allTimeSlots.includes(ts)) {
+                                const cardStyle = `border: 1px solid ${colors.cardBorder};`;
+                                const headerStyle = `background-color: ${colors.headerBg}; color: ${colors.headerColor};`;
+                                fullHtml += `<div class="schedule-card" style="${cardStyle}"><div class="card-header" style="${headerStyle}">${ts}</div><div class="card-body">${assigns.join('<br>')}</div></div>`;
+                            }
+                        }
+                        fullHtml += `</div></div></details>`;
+                     });
+                     containerEl.innerHTML = fullHtml;
                 }
-                fullHtml += `</div></div></details>`;
-             });
-             containerEl.innerHTML = fullHtml;
-        }
 
         function renderAvailabilityPage(allFaculty, teacherAvailabilityMap, container) {
             let htmlContent = `<p style="margin-bottom: 15px; font-style: italic; font-size: 0.9em; padding: 10px; background-color: #f9f9f9; border-radius: 5px;">`;
@@ -1299,6 +1439,7 @@
             loadCourses();
             loadCustomSlots(); // NEW: Load custom slots on startup
             loadAssignments();
+            loadFrozen();
             updateSchedulerUI();
             
             try { const blob = new Blob([workerCode], { type: 'application/javascript' }); workerObjectURL = URL.createObjectURL(blob); } catch(e) { console.error(e); }
@@ -1438,7 +1579,8 @@
                      facultyPreferredSlots: transferableFacultyPreferredSlots,
                      initialBestScore: progressState.bestScore,
                      assignmentDetails: Array.from(assignmentDetailsMap.entries()),
-                     hardcodedAssignments: hardcodedAssignments
+                     hardcodedAssignments: hardcodedAssignments,
+                     frozenAssignments: Array.from(frozenAssignments.entries()) // <--- Pass the data
                 });
             }
             window.addEventListener('beforeunload', () => { if (workerObjectURL) URL.revokeObjectURL(workerObjectURL); if (currentWorker) currentWorker.terminate(); });
