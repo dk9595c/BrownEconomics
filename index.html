@@ -244,7 +244,7 @@
         </div>
 
         <div id="upload-container">
-            <label for="file-uploader">Upload Schedule File (.xlsm, .xlsx):</label>
+            <label for="file-uploader">Upload Timeslot Preference File (.xlsm, .xlsx):</label>
             <input type="file" id="file-uploader" accept=".xlsx, .xlsm" />
             <div id="parse-status">Please select a file to begin.</div>
         </div>
@@ -278,8 +278,11 @@
     </main>
 
     <main id="page-results" class="page-section">
-        <h2>Schedule Optimization Results</h2>
-        <div id="status-message">Ready to generate.</div>
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #ddd; margin-bottom: 10px; padding-bottom: 10px;">
+                <h2 style="border: none; margin: 0; padding: 0;">Schedule Optimization Results</h2>
+                <button id="export-btn" style="background-color: #28a745; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; display: none;">Download Excel (.xlsx)</button>
+            </div>
+            <div id="status-message">Ready to generate.</div>
         <div id="progress-container">
             <div id="stats-container">
                 <div id="timer-label">Time: 0.0s</div>
@@ -1459,6 +1462,7 @@
             loadFrozen();
             updateSchedulerUI();
             
+            
             try { const blob = new Blob([workerCode], { type: 'application/javascript' }); workerObjectURL = URL.createObjectURL(blob); } catch(e) { console.error(e); }
             
             document.getElementById("add-course-btn").addEventListener('click', addCourse);
@@ -1484,11 +1488,64 @@
                 }
             });
             document.getElementById("generate-btn").addEventListener('click', () => { collectAndSaveAssignments(); switchPage('results'); runOptimizeScheduler(); });
-
+            document.getElementById("export-btn").addEventListener('click', exportScheduleToExcel);
             let timerInterval = null;
             let progressState = { bestScore: Infinity };
             let bestKnownSchedule = new Map();
 
+            function exportScheduleToExcel() {
+                        if (!bestKnownSchedule || bestKnownSchedule.size === 0) {
+                            alert("No schedule to export!");
+                            return;
+                        }
+
+                        const exportData = [];
+
+                        // 1. Convert Schedule Map to Array
+                        for (const [facKey, assignment] of bestKnownSchedule.entries()) {
+                            const [realName, idx] = facKey.split('||');
+                            
+                            // Get Course Details
+                            const details = facultyAssignments.get(realName)[parseInt(idx)];
+                            const courseName = details ? details.course : "Unknown";
+                            const section = details ? details.section : "NA";
+
+                            // Get Room and Time
+                            const fullSlotId = assignment.lecture.id; // e.g. "MWF 10-11 (Room 1)"
+                            const timeSlot = assignment.lecture.timeSlot; // e.g. "MWF 10-11"
+                            
+                            // Extract Room Name
+                            const roomMatch = fullSlotId.match(/\((Room \d+)\)$/);
+                            const roomName = roomMatch ? roomMatch[1] : "Virtual/Hardcoded";
+
+                            // Determine Status
+                            let status = "Scheduled";
+                            if (fullSlotId.includes("(Hardcoded)")) status = "Hardcoded";
+                            else if (frozenAssignments.has(facKey) && frozenAssignments.get(facKey) === fullSlotId) status = "Frozen";
+
+                            exportData.push({
+                                "Faculty Name": realName,
+                                "Course": courseName,
+                                "Section": section,
+                                "Time Slot": timeSlot,
+                                "Room": roomName,
+                                "Status": status,
+                                "Conflict": assignment.isHappy ? "No" : "Yes"
+                            });
+                        }
+
+                        // 2. Sort by Faculty Name
+                        exportData.sort((a, b) => a["Faculty Name"].localeCompare(b["Faculty Name"]));
+
+                        // 3. Generate Worksheet
+                        const worksheet = XLSX.utils.json_to_sheet(exportData);
+                        const workbook = XLSX.utils.book_new();
+                        XLSX.utils.book_append_sheet(workbook, worksheet, "Schedule Results");
+
+                        // 4. Download File
+                        XLSX.writeFile(workbook, "Faculty_Schedule_Results.xlsx");
+                    }
+            
             async function runOptimizeScheduler() {
                 const statusEl = document.getElementById("status-message");
                 const singleArea = document.getElementById("single-schedule-results-area");
@@ -1587,6 +1644,42 @@
 
                 try { currentWorker = new Worker(workerObjectURL); } catch(e) { console.error(e); return; }
 
+                currentWorker.onmessage = (event) => {
+                                    const data = event.data;
+                                    if (data.type === 'progressUpdate') {
+                                        const pct = ((data.facultyIndex / (data.totalToAssign || 1)) * 100).toFixed(1);
+                                        document.getElementById("progress-bar").style.width = pct + '%';
+                                        document.getElementById("progress-label").textContent = `Optimizing... (${pct}%)`;
+                                        document.getElementById("combo-label").textContent = `Combinations: ${data.combinations.toLocaleString()}`;
+                                    } else if (data.type === 'solutionUpdate') {
+                                        if (data.score < progressState.bestScore) {
+                                            progressState.bestScore = data.score;
+                                            bestKnownSchedule = new Map(data.schedule);
+                                            singleArea.innerHTML = '<h3 style="border-bottom:1px solid #ccc;">New Best Solution!</h3>';
+                                            renderSingleSchedule(bestKnownSchedule, allTimeSlots, allLectureSlots, singleArea, workerFacultyList);
+                                            statusEl.textContent = `New best found! Conflicts: ${progressState.bestScore}.`;
+                                            statusEl.className = "improved";
+                                        }
+                                    } else if (data.type === 'complete') {
+                                        clearInterval(timerInterval);
+                                        document.getElementById("progress-container").style.display = 'none';
+                                        
+                                       
+                                        document.getElementById("export-btn").style.display = "inline-block";
+
+                                        const dur = (performance.now() - startTime) / 1000;
+                                        statusEl.textContent = `Complete. Final conflicts: ${progressState.bestScore}. (${dur.toFixed(1)}s)`;
+                                        statusEl.className = "success";
+                                        if (data.finalScore < bestHeuristic.numUnhappy) {
+                                             singleArea.innerHTML = '<h3 style="border-bottom:1px solid #ccc;">Final Optimal Solution</h3>';
+                                             renderSingleSchedule(bestKnownSchedule, allTimeSlots, allLectureSlots, singleArea, workerFacultyList);
+                                        } else {
+                                             singleArea.innerHTML = '<h3 style="border-bottom:1px solid #ccc;">Heuristic Solution (Was Optimal)</h3>';
+                                             renderSingleSchedule(bestKnownSchedule, allTimeSlots, allLectureSlots, singleArea, workerFacultyList);
+                                        }
+                                    }
+                                };
+                
                 currentWorker.postMessage({
                      allFaculty: workerFacultyList,
                      allLectureSlots,
@@ -1596,6 +1689,7 @@
                      assignmentDetails: Array.from(assignmentDetailsMap.entries()),
                      hardcodedAssignments: hardcodedAssignments,
                      frozenAssignments: Array.from(frozenAssignments.entries())
+                     
                 });
             }
             window.addEventListener('beforeunload', () => { if (workerObjectURL) URL.revokeObjectURL(workerObjectURL); if (currentWorker) currentWorker.terminate(); });
