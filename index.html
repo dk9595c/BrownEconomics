@@ -39,8 +39,12 @@
         #generate-btn:hover { background-color: #218838; }
         #generate-btn:disabled { background-color: #ccc; cursor: not-allowed; opacity: 0.6; }
         #course-entry-container, #timeslot-entry-container { background-color: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.05); }
-        #course-form, #timeslot-form { display: grid; grid-template-columns: 1fr 120px; gap: 10px; margin-bottom: 20px; align-items: center; border-bottom: 1px dashed #eee; padding-bottom: 15px; }
-        #course-form input[type="text"], #timeslot-form input[type="text"] { padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1.0em; }
+        
+        #course-form, #timeslot-form { display: grid; grid-template-columns: 1fr 100px 120px; gap: 10px; margin-bottom: 20px; align-items: center; border-bottom: 1px dashed #eee; padding-bottom: 15px; }
+        /* Special layout for Course form which only has one input */
+        #course-form { grid-template-columns: 1fr 120px; }
+        
+        #course-form input[type="text"], #timeslot-form input[type="text"], #timeslot-form input[type="number"] { padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1.0em; }
         #course-form button, #timeslot-form button { padding: 10px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; }
         #course-form button:hover, #timeslot-form button:hover { background-color: #0056b3; }
         #course-list, #timeslot-list { list-style: none; padding: 0; }
@@ -73,6 +77,16 @@
             padding: 2px 4px;
             border-radius: 3px;
             border: 1px solid #b8daff;
+        }
+        
+        /* Highlight style for frozen slots */
+        .card-body strong.frozen {
+            color: #155724;
+            background-color: #d4edda;
+            font-weight: bold;
+            padding: 2px 4px;
+            border-radius: 3px;
+            border: 1px solid #c3e6cb;
         }
 
         .course-tag { display: inline-block; background-color: #f0f0f0; color: #555; padding: 1px 6px; border-radius: 4px; font-size: 0.85em; margin-left: 8px; border: 1px solid #ddd; vertical-align: middle; }
@@ -139,27 +153,27 @@
             cursor: pointer;
             font-weight: bold;
         }
-        /* NEW: Freeze Button Style (Fixed Box) */
-                .freeze-btn {
-                    background-color: #fff;
-                    border: 1px solid #999; /* Creates the box outline */
-                    border-radius: 3px;
-                    cursor: pointer;
-                    font-size: 14px;
-                    width: 24px;       /* Fixed width */
-                    height: 24px;      /* Fixed height */
-                    line-height: 22px; /* Centers the snowflake vertically */
-                    text-align: center;
-                    margin-left: 8px;
-                    padding: 0;
-                    vertical-align: middle;
-                    display: inline-block;
-                    transition: all 0.2s;
-                }
-                .freeze-btn:hover {
-                    border-color: #004a9c;
-                    background-color: #f0f8ff;
-                }
+        /* Freeze Button Style (Fixed Box) */
+        .freeze-btn {
+            background-color: #fff;
+            border: 1px solid #999;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 14px;
+            width: 24px;
+            height: 24px;
+            line-height: 22px;
+            text-align: center;
+            margin-left: 8px;
+            padding: 0;
+            vertical-align: middle;
+            display: inline-block;
+            transition: all 0.2s;
+        }
+        .freeze-btn:hover {
+            border-color: #004a9c;
+            background-color: #f0f8ff;
+        }
         #assignment-message {
             margin-bottom: 15px;
             padding: 10px;
@@ -184,7 +198,7 @@
 
     <nav>
         <button id="nav-courses" class="active" onclick="switchPage('courses')">1. Course Entry</button>
-        <button id="nav-custom-slots" onclick="switchPage('custom-slots')">2. Custom Time Slots</button> <button id="nav-faculty" onclick="switchPage('faculty')">3. Faculty & Assignments</button>
+        <button id="nav-timeslots" onclick="switchPage('timeslots')">2. Time Slots</button> <button id="nav-faculty" onclick="switchPage('faculty')">3. Faculty & Assignments</button>
         <button id="nav-results" onclick="switchPage('results')">4. Schedule Results</button>
         <button id="nav-availability" onclick="switchPage('availability')">5. Availability</button>
     </nav>
@@ -202,18 +216,20 @@
         </div>
     </main>
 
-    <main id="page-custom-slots" class="page-section">
-        <h2>Custom Time Slot Entry</h2>
+    <main id="page-timeslots" class="page-section">
+        <h2>Time Slot Configuration</h2>
         <div id="timeslot-entry-container">
             <p style="font-size: 0.9em; color: #555; margin-bottom: 20px;">
-                Enter time slots here that may not be present in the uploaded Excel file. These slots will be available for Hardcoding (Pre-assignment).
-                <br>Format example: <b>MWF 10:00-11:00</b> or <b>TTh 1:00-2:30</b>
+                Define all available time slots and the number of rooms available for each.
+                <br><b>Note:</b> This replaces the need to parse time slots from the Excel file.
+                <br>Format example: <b>MWF 10:00-11:00</b> or <b>TTh 1:00-2:30</b>.
             </p>
             <div id="timeslot-form">
-                <input type="text" id="timeslot-name-input" placeholder="Time Slot Name (e.g., MWF 10-11, T 4:30-5:30)" required>
+                <input type="text" id="timeslot-name-input" placeholder="Time Slot Name (e.g., MWF 10-11)" required>
+                <input type="number" id="timeslot-capacity-input" placeholder="Rooms" min="1" value="1" style="width: 80px;" required>
                 <button id="add-timeslot-btn">Add Slot</button>
             </div>
-            <h3>Current Custom Slots (<span id="timeslot-count">0</span>)</h3>
+            <h3>Configured Time Slots (<span id="timeslot-count">0</span>)</h3>
             <ul id="timeslot-list"></ul>
         </div>
     </main>
@@ -237,7 +253,8 @@
             <h3>Hardcode Courses (Pre-assign)</h3>
             <p style="font-size: 0.9em; color: #555; margin-bottom:10px;">
                 Add specific assignments here to lock a faculty member and their course into a specific time slot.
-                <br><b>Note:</b> Hardcoded courses do not consume a regular room from the count, but they still respect faculty availability and course conflict rules.
+                <br><b>Note:</b> Hardcoded courses do not consume a regular room from the count (Virtual).
+                <br><b>Frozen</b> courses (marked with ❄️ in Results) <b>do</b> consume a room.
                 <br><strong style="color: #dc3545;">Warning:</strong> Faculty cannot be assigned to teach on all 5 days (Mon-Fri).
             </p>
             <div class="hardcode-controls">
@@ -286,46 +303,68 @@
         // --- EMBEDDED WORKER CODE ---
         const workerCode = `
             const parseTimeSlotCache = new Map();
+            
+            // --- UNIVERSAL PARSER IN WORKER ---
             function parseTimeSlot(timeString) {
-                        if (!timeString) return null;
-                        if (parseTimeSlotCache.has(timeString)) return parseTimeSlotCache.get(timeString);
+                if (!timeString) return null;
+                if (parseTimeSlotCache.has(timeString)) return parseTimeSlotCache.get(timeString);
+                
+                const cleanStr = timeString.trim(); 
+                
+                // Regex matches the Day Part only. Case sensitive for 'Th'.
+                const dayPartMatch = cleanStr.match(/^(MTWThF|MTThF|TWThF|MWF|MTW|MThF|MTTh|TWTh|TThF|WThF|TTh|MW|MF|WF|MT|MTh|ThF|TW|TF|WTh|Th|M|T|W|F)\\s+/);
+                
+                if (!dayPartMatch) return null;
+                const dayStr = dayPartMatch[1];
+                let days = [];
+                
+                switch(dayStr) {
+                    case 'MTWThF': days = ['M', 'T', 'W', 'H', 'F']; break;
+                    case 'MTThF':  days = ['M', 'T', 'H', 'F']; break;
+                    case 'TWThF':  days = ['T', 'W', 'H', 'F']; break;
+                    case 'MWF':    days = ['M', 'W', 'F']; break;
+                    case 'MTW':    days = ['M', 'T', 'W']; break;
+                    case 'MThF':   days = ['M', 'H', 'F']; break;
+                    case 'MTTh':   days = ['M', 'T', 'H']; break;
+                    case 'TWTh':   days = ['T', 'W', 'H']; break;
+                    case 'TThF':   days = ['T', 'H', 'F']; break;
+                    case 'WThF':   days = ['W', 'H', 'F']; break;
+                    case 'TTh':    days = ['T', 'H']; break;
+                    case 'MW':     days = ['M', 'W']; break;
+                    case 'MF':     days = ['M', 'F']; break;
+                    case 'WF':     days = ['W', 'F']; break;
+                    case 'MT':     days = ['M', 'T']; break;
+                    case 'MTh':    days = ['M', 'H']; break;
+                    case 'ThF':    days = ['H', 'F']; break;
+                    case 'TW':     days = ['T', 'W']; break;
+                    case 'TF':     days = ['T', 'F']; break;
+                    case 'WTh':    days = ['W', 'H']; break;
+                    case 'M':      days = ['M']; break;
+                    case 'T':      days = ['T']; break;
+                    case 'W':      days = ['W']; break;
+                    case 'Th':     days = ['H']; break;
+                    case 'F':      days = ['F']; break;
+                    default: return null;
+                }
 
-                        // 1. Clean up whitespace
-                        const cleanStr = timeString.trim();
-
-                        // 2. Updated Regex: Added "MW"
-                        const dayPartMatch = cleanStr.match(/^(MWF|MW|TTh|M|W|F|T|Th)\s+/);
-                        if (!dayPartMatch) return null;
-
-                        const dayStr = dayPartMatch[1];
-                        let days = [];
-
-                        // 3. Updated Logic: Added "MW" case
-                        if (dayStr === 'MWF') days = ['M', 'W', 'F'];
-                        else if (dayStr === 'MW') days = ['M', 'W'];  // <--- NEW LINE
-                        else if (dayStr === 'TTh') days = ['T', 'H'];
-                        else if (dayStr === 'T') days = ['T'];
-                        else if (dayStr === 'Th') days = ['H']; 
-                        else days = dayStr.split(''); 
-
-                        // 4. Robust Time Parsing (using cleanStr)
-                        const timePart = cleanStr.substring(dayStr.length).trim();
-                        const timeMatch = timePart.match(/^(\d{1,2})(?::(\d{2}))?\s*-\s*(\d{1,2})(?::(\d{2}))?$/);
-                        
-                        if (!timeMatch) return null;
-
-                        let startHour = parseInt(timeMatch[1], 10);
-                        let startMin = parseInt(timeMatch[2] || '0', 10);
-                        let endHour = parseInt(timeMatch[3], 10);
-                        let endMin = parseInt(timeMatch[4] || '0', 10);
-
-                        if (startHour >= 1 && startHour <= 5) startHour += 12;
-                        if (endHour >= 1 && endHour <= 5) endHour += 12;
-
-                        const result = { id: timeString, days: days, start: (startHour * 60) + startMin, end: (endHour * 60) + endMin };
-                        parseTimeSlotCache.set(timeString, result);
-                        return result;
-                    }
+                const timePart = cleanStr.substring(dayStr.length).trim();
+                const timeMatch = timePart.match(/^(\\d{1,2})(?::(\\d{2}))?\\s*-\\s*(\\d{1,2})(?::(\\d{2}))?$/);
+                
+                if (!timeMatch) return null;
+                
+                let startHour = parseInt(timeMatch[1], 10);
+                let startMin = parseInt(timeMatch[2] || '0', 10);
+                let endHour = parseInt(timeMatch[3], 10);
+                let endMin = parseInt(timeMatch[4] || '0', 10);
+                
+                if (startHour >= 1 && startHour <= 6) startHour += 12;
+                if (endHour >= 1 && endHour <= 6) endHour += 12;
+                
+                const result = { id: timeString, days: days, start: (startHour * 60) + startMin, end: (endHour * 60) + endMin };
+                parseTimeSlotCache.set(timeString, result);
+                return result;
+            }
+            
             function hasConflict(newSlotObject, assignedSlotObjects) {
                 if (!newSlotObject) return true; 
                 for (const assigned of assignedSlotObjects) {
@@ -348,82 +387,67 @@
             function causesFiveDayViolation(newSlotObject, assignedSlotObjects) {
                 if (!newSlotObject) return false;
                 const uniqueDays = new Set();
-                
-                // Add days from current assignment
                 assignedSlotObjects.forEach(slot => {
                     slot.days.forEach(d => uniqueDays.add(d));
                 });
-                
-                // Add days from new slot
                 newSlotObject.days.forEach(d => uniqueDays.add(d));
-                
-                // Assuming standard set is M, T, W, H, F (Size 5)
-                // We assume 'H' stands for Thursday in this parsing logic
                 return uniqueDays.size >= 5;
             }
 
             function shuffleArray(array) { for (let i = array.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [array[i], array[j]] = [array[j], array[i]]; } return array; }
             function yieldWorker() { return new Promise(resolve => setTimeout(resolve, 0)); }
             
-        async function solveFullSearchInWorker(allFaculty, allLectureSlots, frozenAssignments, teacherAvailabilityMap, facultyPreferredSlots, assignmentDetailsMap, hardcodedAssignments, initialBestScore) {
-                        const schedule = new Map(); 
-                        const assignedLectureSlots = new Set(); 
-                        const facultyTimeSlotMap = new Map();
-                        const courseTimeSlotMap = new Map();
-                        let initialUnhappy = 0;
+            async function solveFullSearchInWorker(allFaculty, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, assignmentDetailsMap, hardcodedAssignments, frozenAssignments, initialBestScore) {
+                const schedule = new Map(); 
+                const assignedLectureSlots = new Set(); 
+                const facultyTimeSlotMap = new Map();
+                const courseTimeSlotMap = new Map();
+                let initialUnhappy = 0;
 
-        // --- NEW: Process Frozen Assignments FIRST ---
-            // This ensures they consume the specific room immediately
-            for (const [facKey, lectureId] of frozenAssignments) {
-                // Find the exact lecture object (matches Time AND Room)
-                const lecture = allLectureSlots.find(l => l.id === lectureId);
-                
-                if (lecture) {
-                    const realFac = facKey.split('||')[0];
-                    const courseName = assignmentDetailsMap.get(facKey);
-                    
-                    // Assign it
-                    schedule.set(facKey, { lecture: lecture, isHappy: true }); // Frozen is always "Happy"
-                    
-                    // CRITICAL: Mark this room/slot as TAKEN
-                    assignedLectureSlots.add(lecture.id); 
-                    
-                    // Update constraints so this faculty isn't double booked
-                    let fSlots = facultyTimeSlotMap.get(realFac) || [];
-                    fSlots.push(lecture.timeSlotObject);
-                    facultyTimeSlotMap.set(realFac, fSlots);
+                // 1. PROCESS FROZEN ASSIGNMENTS (Consumes Room)
+                for (const [facKey, lectureId] of frozenAssignments) {
+                    const lecture = allLectureSlots.find(l => l.id === lectureId);
+                    if (lecture) {
+                        const realFac = facKey.split('||')[0];
+                        const courseName = assignmentDetailsMap.get(facKey);
+                        
+                        schedule.set(facKey, { lecture: lecture, isHappy: true });
+                        assignedLectureSlots.add(lecture.id);
+                        
+                        let fSlots = facultyTimeSlotMap.get(realFac) || [];
+                        fSlots.push(lecture.timeSlotObject);
+                        facultyTimeSlotMap.set(realFac, fSlots);
 
-                    if (courseName) {
-                        if (!courseTimeSlotMap.has(courseName)) courseTimeSlotMap.set(courseName, []);
-                        courseTimeSlotMap.get(courseName).push(lecture.timeSlotObject);
+                        if (courseName) {
+                            if (!courseTimeSlotMap.has(courseName)) courseTimeSlotMap.set(courseName, []);
+                            courseTimeSlotMap.get(courseName).push(lecture.timeSlotObject);
+                        }
                     }
                 }
-            }
-                        // PRE-PROCESS HARDCODED
-                        for (const item of hardcodedAssignments) {
-                            const tsName = item.ts;
-                            const facKey = item.fac;
-                            
-                            const realFac = facKey.split('||')[0];
-                            const courseName = assignmentDetailsMap.get(facKey);
-                            const tsObj = parseTimeSlot(tsName);
-                            
-                            const virtualLecture = { id: tsName + " (Hardcoded)", timeSlot: tsName, timeSlotObject: tsObj };
-                            
-                            // CHANGE: Hardcoded is always happy in Worker too
-                            const isHappy = true; 
-                            
-                            schedule.set(facKey, { lecture: virtualLecture, isHappy: isHappy });
-                            
-                            let fSlots = facultyTimeSlotMap.get(realFac) || [];
-                            fSlots.push(tsObj);
-                            facultyTimeSlotMap.set(realFac, fSlots);
 
-                            if (!courseTimeSlotMap.has(courseName)) courseTimeSlotMap.set(courseName, []);
-                            courseTimeSlotMap.get(courseName).push(tsObj);
+                // 2. PROCESS HARDCODED (Virtual - No Room Consumption)
+                for (const item of hardcodedAssignments) {
+                    const tsName = item.ts;
+                    const facKey = item.fac;
+                    
+                    if (schedule.has(facKey)) continue;
 
-                            
-                        }
+                    const realFac = facKey.split('||')[0];
+                    const courseName = assignmentDetailsMap.get(facKey);
+                    const tsObj = parseTimeSlot(tsName);
+                    
+                    const virtualLecture = { id: tsName + " (Hardcoded)", timeSlot: tsName, timeSlotObject: tsObj };
+                    const isHappy = true; 
+                    
+                    schedule.set(facKey, { lecture: virtualLecture, isHappy: isHappy });
+                    
+                    let fSlots = facultyTimeSlotMap.get(realFac) || [];
+                    fSlots.push(tsObj);
+                    facultyTimeSlotMap.set(realFac, fSlots);
+
+                    if (!courseTimeSlotMap.has(courseName)) courseTimeSlotMap.set(courseName, []);
+                    courseTimeSlotMap.get(courseName).push(tsObj);
+                }
 
                 const unassignedFaculty = allFaculty.filter(f => !schedule.has(f));
                 
@@ -459,7 +483,7 @@
                         if (!assignedLectureSlots.has(l.id) && 
                             !hasConflict(l.timeSlotObject, assignedSlots) &&
                             !hasCourseConflict(l.timeSlotObject, currentCourse, courseTimeSlotMap) &&
-                            !causesFiveDayViolation(l.timeSlotObject, assignedSlots)) { // ENFORCE 5-DAY RULE
+                            !causesFiveDayViolation(l.timeSlotObject, assignedSlots)) { 
                             
                             const isHappy = preferredSlots.has(l.timeSlot);
                             possible.push({ lecture: l, isHappy: isHappy }); 
@@ -495,72 +519,89 @@
             }
             
             self.onmessage = async (event) => {
-                            parseTimeSlotCache.clear(); 
-                            // Ensure frozenAssignments is destructured here
-                            const { allFaculty, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, assignmentDetails, hardcodedAssignments, frozenAssignments, initialBestScore } = event.data;
-                            try {
-                                const reconstructedTeacherAvailabilityMap = new Map(teacherAvailabilityMap);
-                                const reconstructedFacultyPreferredSlots = new Map(facultyPreferredSlots.map(([k, v]) => [k, new Set(v)]));
-                                const assignmentDetailsMap = new Map(assignmentDetails); 
-                                const allLectureSlotsParsed = allLectureSlots.map(l => ({
-                                    ...l,
-                                    timeSlotObject: parseTimeSlot(l.timeSlot) 
-                                })).filter(l => l.timeSlotObject); 
+                parseTimeSlotCache.clear(); 
+                const { allFaculty, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, assignmentDetails, hardcodedAssignments, frozenAssignments, initialBestScore } = event.data;
+                try {
+                    const reconstructedTeacherAvailabilityMap = new Map(teacherAvailabilityMap);
+                    const reconstructedFacultyPreferredSlots = new Map(facultyPreferredSlots.map(([k, v]) => [k, new Set(v)]));
+                    const assignmentDetailsMap = new Map(assignmentDetails); 
+                    const allLectureSlotsParsed = allLectureSlots.map(l => ({
+                        ...l,
+                        timeSlotObject: parseTimeSlot(l.timeSlot) 
+                    })).filter(l => l.timeSlotObject); 
 
-                                // FIX: Pass arguments in the exact order defined in solveFullSearchInWorker
-                                const result = await solveFullSearchInWorker(
-                                    allFaculty, 
-                                    allLectureSlotsParsed, 
-                                    frozenAssignments, // <--- This was missing/misplaced
-                                    reconstructedTeacherAvailabilityMap, 
-                                    reconstructedFacultyPreferredSlots, 
-                                    assignmentDetailsMap,
-                                    hardcodedAssignments,
-                                    initialBestScore
-                                );
-                                self.postMessage({ type: 'complete', ...result });
-                            } catch (error) { console.error("Error in worker:", error); self.postMessage({ type: 'error', message: error.message }); }
-                        };
+                    const result = await solveFullSearchInWorker(
+                        allFaculty, 
+                        allLectureSlotsParsed, 
+                        reconstructedTeacherAvailabilityMap, 
+                        reconstructedFacultyPreferredSlots, 
+                        assignmentDetailsMap,
+                        hardcodedAssignments,
+                        frozenAssignments,
+                        initialBestScore
+                    );
+                    self.postMessage({ type: 'complete', ...result });
+                } catch (error) { console.error("Error in worker:", error); self.postMessage({ type: 'error', message: error.message }); }
+            };
         `;
 
         // --- GLOBAL HELPER ---
         function shuffleArray(array) { for (let i = array.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [array[i], array[j]] = [array[j], array[i]]; } return array; }
         function formatTime(totalSeconds) { if (totalSeconds >= 3600) { const h = Math.floor(totalSeconds / 3600); const r = totalSeconds % 3600; const m = Math.floor(r / 60); const s = r % 60; return `Time: ${h}h ${m}m ${s.toFixed(1)}s`; } if (totalSeconds >= 60) { const m = Math.floor(totalSeconds / 60); const s = totalSeconds % 60; return `Time: ${m}m ${s.toFixed(1)}s`; } return `Time: ${totalSeconds.toFixed(1)}s`; }
         const parseTimeSlotCache = new Map();
+        
+        // --- UPDATED EXPLICIT PARSER IN MAIN SCRIPT ---
         function parseTimeSlot(timeString) {
-                    if (!timeString) return null;
-                    if (parseTimeSlotCache.has(timeString)) return parseTimeSlotCache.get(timeString);
-                    
-                    // CHANGED: Added |MW to the Regex
-                    const dayPartMatch = timeString.match(/^(MWF|MW|TTh|M|W|F|T|Th)\s+/);
-                    
-                    if (!dayPartMatch) return null;
-                    const dayStr = dayPartMatch[1];
-                    let days = [];
-                    
-                    if (dayStr === 'MWF') days = ['M', 'W', 'F'];
-                    else if (dayStr === 'MW') days = ['M', 'W']; // CHANGED: Added specific check for MW
-                    else if (dayStr === 'TTh') days = ['T', 'H'];
-                    else if (dayStr === 'T') days = ['T'];
-                    else if (dayStr === 'Th') days = ['H'];
-                    else days = dayStr.split('');
-                    
-                    const timePart = timeString.substring(dayStr.length).trim();
-                    const timeMatch = timePart.match(/^(\d{1,2})(?::(\d{2}))?\s*-\s*(\d{1,2})(?::(\d{2}))?$/);
-                    if (!timeMatch) return null;
-                    
-                    let startHour = parseInt(timeMatch[1], 10);
-                    let startMin = parseInt(timeMatch[2] || '0', 10);
-                    let endHour = parseInt(timeMatch[3], 10);
-                    let endMin = parseInt(timeMatch[4] || '0', 10);
-                    
-                    if (startHour >= 1 && startHour <= 5) startHour += 12;
-                    if (endHour >= 1 && endHour <= 5) endHour += 12;
-                    
-                    const result = { id: timeString, days: days, start: (startHour * 60) + startMin, end: (endHour * 60) + endMin };
-                    parseTimeSlotCache.set(timeString, result);
-                    return result;
-                }
+            if (!timeString) return null;
+            if (parseTimeSlotCache.has(timeString)) return parseTimeSlotCache.get(timeString);
+            
+            const cleanStr = timeString.trim();
+            const dayPartMatch = cleanStr.match(/^(MTWThF|MTThF|TWThF|MWF|MTW|MThF|MTTh|TWTh|TThF|WThF|TTh|MW|MF|WF|MT|MTh|ThF|TW|TF|WTh|Th|M|T|W|F)\s+/);
+            if (!dayPartMatch) return null;
+            const dayStr = dayPartMatch[1];
+            let days = [];
+            switch(dayStr) {
+                case 'MTWThF': days = ['M', 'T', 'W', 'H', 'F']; break;
+                case 'MTThF':  days = ['M', 'T', 'H', 'F']; break;
+                case 'TWThF':  days = ['T', 'W', 'H', 'F']; break;
+                case 'MWF':    days = ['M', 'W', 'F']; break;
+                case 'MTW':    days = ['M', 'T', 'W']; break;
+                case 'MThF':   days = ['M', 'H', 'F']; break;
+                case 'MTTh':   days = ['M', 'T', 'H']; break;
+                case 'TWTh':   days = ['T', 'W', 'H']; break;
+                case 'TThF':   days = ['T', 'H', 'F']; break;
+                case 'WThF':   days = ['W', 'H', 'F']; break;
+                case 'TTh':    days = ['T', 'H']; break;
+                case 'MW':     days = ['M', 'W']; break;
+                case 'MF':     days = ['M', 'F']; break;
+                case 'WF':     days = ['W', 'F']; break;
+                case 'MT':     days = ['M', 'T']; break;
+                case 'MTh':    days = ['M', 'H']; break;
+                case 'ThF':    days = ['H', 'F']; break;
+                case 'TW':     days = ['T', 'W']; break;
+                case 'TF':     days = ['T', 'F']; break;
+                case 'WTh':    days = ['W', 'H']; break;
+                case 'M':      days = ['M']; break;
+                case 'T':      days = ['T']; break;
+                case 'W':      days = ['W']; break;
+                case 'Th':     days = ['H']; break;
+                case 'F':      days = ['F']; break;
+                default: return null;
+            }
+            const timePart = cleanStr.substring(dayStr.length).trim();
+            const timeMatch = timePart.match(/^(\d{1,2})(?::(\d{2}))?\s*-\s*(\d{1,2})(?::(\d{2}))?$/);
+            if (!timeMatch) return null;
+            let startHour = parseInt(timeMatch[1], 10);
+            let startMin = parseInt(timeMatch[2] || '0', 10);
+            let endHour = parseInt(timeMatch[3], 10);
+            let endMin = parseInt(timeMatch[4] || '0', 10);
+            if (startHour >= 1 && startHour <= 6) startHour += 12;
+            if (endHour >= 1 && endHour <= 6) endHour += 12;
+            const result = { id: timeString, days: days, start: (startHour * 60) + startMin, end: (endHour * 60) + endMin };
+            parseTimeSlotCache.set(timeString, result);
+            return result;
+        }
+
         function hasConflict(newSlotObject, assignedSlotObjects) {
             if (!newSlotObject) return true;
             for (const assigned of assignedSlotObjects) {
@@ -579,7 +620,6 @@
             return hasConflict(newSlotObject, assigned);
         }
         
-        // NEW: 5-Day Violation Check
         function causesFiveDayViolation(newSlotObject, assignedSlotObjects) {
             if (!newSlotObject) return false;
             const uniqueDays = new Set();
@@ -590,175 +630,168 @@
             return uniqueDays.size >= 5;
         }
 
+        // --- HEURISTICS ---
         function runHeuristic(strategy, allFaculty, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, assignmentDetailsMap, hardcodedAssignments) {
-                    const schedule = new Map();
-                    const assignedLectureSlots = new Set();
-                    const facultyTimeSlotMap = new Map();
-                    const courseTimeSlotMap = new Map();
-                    let numUnhappy = 0;
-                    // --- NEW: Process Frozen Assignments FIRST ---
-                        // This ensures they consume the specific room immediately
-                        for (const [facKey, lectureId] of frozenAssignments) {
-                            // Find the exact lecture object (matches Time AND Room)
-                            const lecture = allLectureSlots.find(l => l.id === lectureId);
-                            
-                            if (lecture) {
-                                const realFac = facKey.split('||')[0];
-                                const courseName = assignmentDetailsMap.get(facKey);
-                                
-                                // Assign it
-                                schedule.set(facKey, { lecture: lecture, isHappy: true }); // Frozen is always "Happy"
-                                
-                                // CRITICAL: Mark this room/slot as TAKEN
-                                assignedLectureSlots.add(lecture.id);
-                                
-                                // Update constraints so this faculty isn't double booked
-                                let fSlots = facultyTimeSlotMap.get(realFac) || [];
-                                fSlots.push(lecture.timeSlotObject);
-                                facultyTimeSlotMap.set(realFac, fSlots);
+            const schedule = new Map();
+            const assignedLectureSlots = new Set();
+            const facultyTimeSlotMap = new Map();
+            const courseTimeSlotMap = new Map();
+            let numUnhappy = 0;
 
-                                if (courseName) {
-                                    if (!courseTimeSlotMap.has(courseName)) courseTimeSlotMap.set(courseName, []);
-                                    courseTimeSlotMap.get(courseName).push(lecture.timeSlotObject);
-                                }
-                            }
-                        }
-                    const lectureSlotsByTime = new Map();
-                    for (const l of allLectureSlots) {
-                        if (!lectureSlotsByTime.has(l.timeSlot)) lectureSlotsByTime.set(l.timeSlot, []);
-                        lectureSlotsByTime.get(l.timeSlot).push(l);
-                    }
+            const lectureSlotsByTime = new Map();
+            for (const l of allLectureSlots) {
+                if (!lectureSlotsByTime.has(l.timeSlot)) lectureSlotsByTime.set(l.timeSlot, []);
+                lectureSlotsByTime.get(l.timeSlot).push(l);
+            }
 
-                    // 1. Process Hardcoded
-                    for (const item of hardcodedAssignments) {
-                        const tsName = item.ts;
-                        const facKey = item.fac;
-                        const realFac = facKey.split('||')[0];
-                        const courseName = assignmentDetailsMap.get(facKey);
-                        const tsObj = parseTimeSlot(tsName);
-                        const virtualLecture = { id: tsName + " (Hardcoded)", timeSlot: tsName, timeSlotObject: tsObj };
-                        
-                        // CHANGE: Force hardcoded assignments to be "Happy" so they don't count as conflicts
-                        const isHappy = true;
-                        
-                        schedule.set(facKey, { lecture: virtualLecture, isHappy: isHappy });
-                        
-                        let fSlots = facultyTimeSlotMap.get(realFac) || [];
-                        fSlots.push(tsObj);
-                        facultyTimeSlotMap.set(realFac, fSlots);
+            // 0. Process FROZEN (Assignments that consume a room)
+            for (const [facKey, lectureId] of frozenAssignments) {
+                const lecture = allLectureSlots.find(l => l.id === lectureId);
+                if (lecture) {
+                    const realFac = facKey.split('||')[0];
+                    const courseName = assignmentDetailsMap.get(facKey);
+                    
+                    schedule.set(facKey, { lecture: lecture, isHappy: true });
+                    assignedLectureSlots.add(lecture.id);
+                    
+                    let fSlots = facultyTimeSlotMap.get(realFac) || [];
+                    fSlots.push(lecture.timeSlotObject);
+                    facultyTimeSlotMap.set(realFac, fSlots);
 
-                        if (!courseTimeSlotMap.has(courseName)) courseTimeSlotMap.set(courseName, []);
-                        courseTimeSlotMap.get(courseName).push(tsObj);
-
-                        // REMOVED: if (!isHappy) numUnhappy++; (Hardcoded never adds to conflict count now)
-                    }
-
-                    // 2. Sort Remaining
-                    const unassignedFaculty = allFaculty.filter(f => !schedule.has(f));
-                    let sortedFaculty = [...unassignedFaculty];
-
-                    if (strategy === 'MRV' || strategy === 'NO_LIMIT') {
-                        sortedFaculty.sort((a, b) => {
-                            const realA = a.split('||')[0]; const realB = b.split('||')[0];
-                            return (teacherAvailabilityMap.get(realA)?.length || 0) - (teacherAvailabilityMap.get(realB)?.length || 0);
-                        });
-                    } else {
-                        shuffleArray(sortedFaculty);
-                    }
-
-                    // Scarcity Map
-                    const slotRoomCount = new Map();
-                    if (strategy === 'SCARCITY') {
-                        for (const [ts, lectures] of lectureSlotsByTime.entries()) {
-                            slotRoomCount.set(ts, lectures.length);
-                        }
-                    }
-
-                    for (const facultyKey of sortedFaculty) {
-                        const realFac = facultyKey.split('||')[0];
-                        const currentCourse = assignmentDetailsMap.get(facultyKey);
-                        const assignedSlots = facultyTimeSlotMap.get(realFac) || [];
-                        const prefSet = facultyPreferredSlots.get(realFac) || new Set();
-                        let potentialAssignments = [];
-
-                        // Valid slots
-                        for (const l of allLectureSlots) {
-                            let isFiveDayOk = true;
-                            // Strategy 4 (NO_LIMIT) ignores the 5-day check
-                            if (strategy !== 'NO_LIMIT') {
-                                if (causesFiveDayViolation(l.timeSlotObject, assignedSlots)) {
-                                    isFiveDayOk = false;
-                                }
-                            }
-
-                            if (isFiveDayOk &&
-                                !assignedLectureSlots.has(l.id) &&
-                                !hasConflict(l.timeSlotObject, assignedSlots) &&
-                                !hasCourseConflictMain(l.timeSlotObject, currentCourse, courseTimeSlotMap)) {
-                                
-                                const isHappy = prefSet.has(l.timeSlot);
-                                let heuristicValue = 0;
-
-                                if (strategy === 'LCV') {
-                                    const unassignedKeys = sortedFaculty.filter(f => !schedule.has(f) && f !== facultyKey);
-                                    for (const otherFacKey of unassignedKeys) {
-                                        const otherRealFac = otherFacKey.split('||')[0];
-                                        const otherPrefSet = facultyPreferredSlots.get(otherRealFac) || new Set();
-                                        const otherAssignedSlots = facultyTimeSlotMap.get(otherRealFac) || [];
-                                        if (otherPrefSet.has(l.timeSlot) && !hasConflict(l.timeSlotObject, otherAssignedSlots)) {
-                                            heuristicValue++;
-                                        }
-                                    }
-                                } else if (strategy === 'SCARCITY') {
-                                    heuristicValue = slotRoomCount.get(l.timeSlot) || Infinity;
-                                }
-
-                                potentialAssignments.push({ lecture: l, isHappy: isHappy, val: heuristicValue });
-                            }
-                        }
-
-                        if (potentialAssignments.length > 0) {
-                            if (strategy === 'MRV' || strategy === 'NO_LIMIT') {
-                                const happy = potentialAssignments.filter(p => p.isHappy);
-                                if(happy.length > 0) { shuffleArray(happy); potentialAssignments = happy; }
-                                else { shuffleArray(potentialAssignments); }
-                            } else {
-                                potentialAssignments.sort((a, b) => {
-                                    if (b.isHappy !== a.isHappy) return b.isHappy - a.isHappy;
-                                    return a.val - b.val;
-                                });
-                            }
-
-                            const chosen = potentialAssignments[0].lecture;
-                            const isHappy = potentialAssignments[0].isHappy;
-                            schedule.set(facultyKey, { lecture: chosen, isHappy: isHappy });
-                            assignedLectureSlots.add(chosen.id);
-                            
-                            const fSlots = facultyTimeSlotMap.get(realFac) || [];
-                            fSlots.push(chosen.timeSlotObject);
-                            facultyTimeSlotMap.set(realFac, fSlots);
-
-                            if (!courseTimeSlotMap.has(currentCourse)) courseTimeSlotMap.set(currentCourse, []);
-                            courseTimeSlotMap.get(currentCourse).push(chosen.timeSlotObject);
-
-                            if (!isHappy) numUnhappy++;
-                        } else {
-                            numUnhappy += 999;
-                        }
-                    }
-
-                    return { schedule, numUnhappy };
+                    if (!courseTimeSlotMap.has(courseName)) courseTimeSlotMap.set(courseName, []);
+                    courseTimeSlotMap.get(courseName).push(lecture.timeSlotObject);
                 }
+            }
+
+            // 1. Process Hardcoded (Virtual - No room consumption)
+            for (const item of hardcodedAssignments) {
+                const tsName = item.ts;
+                const facKey = item.fac;
+                if(schedule.has(facKey)) continue;
+
+                const realFac = facKey.split('||')[0];
+                const courseName = assignmentDetailsMap.get(facKey);
+                const tsObj = parseTimeSlot(tsName);
+                const virtualLecture = { id: tsName + " (Hardcoded)", timeSlot: tsName, timeSlotObject: tsObj };
+                const isHappy = true;
+                
+                schedule.set(facKey, { lecture: virtualLecture, isHappy: isHappy });
+                
+                let fSlots = facultyTimeSlotMap.get(realFac) || [];
+                fSlots.push(tsObj);
+                facultyTimeSlotMap.set(realFac, fSlots);
+
+                if (!courseTimeSlotMap.has(courseName)) courseTimeSlotMap.set(courseName, []);
+                courseTimeSlotMap.get(courseName).push(tsObj);
+            }
+
+            // 2. Sort Remaining
+            const unassignedFaculty = allFaculty.filter(f => !schedule.has(f));
+            let sortedFaculty = [...unassignedFaculty];
+
+            if (strategy === 'MRV' || strategy === 'NO_LIMIT') {
+                sortedFaculty.sort((a, b) => {
+                    const realA = a.split('||')[0]; const realB = b.split('||')[0];
+                    return (teacherAvailabilityMap.get(realA)?.length || 0) - (teacherAvailabilityMap.get(realB)?.length || 0);
+                });
+            } else {
+                shuffleArray(sortedFaculty);
+            }
+
+            // Scarcity Map
+            const slotRoomCount = new Map();
+            if (strategy === 'SCARCITY') {
+                for (const [ts, lectures] of lectureSlotsByTime.entries()) {
+                    slotRoomCount.set(ts, lectures.length);
+                }
+            }
+
+            for (const facultyKey of sortedFaculty) {
+                const realFac = facultyKey.split('||')[0];
+                const currentCourse = assignmentDetailsMap.get(facultyKey);
+                const assignedSlots = facultyTimeSlotMap.get(realFac) || [];
+                const prefSet = facultyPreferredSlots.get(realFac) || new Set();
+                let potentialAssignments = [];
+
+                // Valid slots
+                for (const l of allLectureSlots) {
+                    let isFiveDayOk = true;
+                    if (strategy !== 'NO_LIMIT') {
+                        if (causesFiveDayViolation(l.timeSlotObject, assignedSlots)) {
+                            isFiveDayOk = false;
+                        }
+                    }
+
+                    if (isFiveDayOk &&
+                        !assignedLectureSlots.has(l.id) &&
+                        !hasConflict(l.timeSlotObject, assignedSlots) &&
+                        !hasCourseConflictMain(l.timeSlotObject, currentCourse, courseTimeSlotMap)) {
+                        
+                        const isHappy = prefSet.has(l.timeSlot);
+                        let heuristicValue = 0;
+
+                        if (strategy === 'LCV') {
+                            const unassignedKeys = sortedFaculty.filter(f => !schedule.has(f) && f !== facultyKey);
+                            for (const otherFacKey of unassignedKeys) {
+                                const otherRealFac = otherFacKey.split('||')[0];
+                                const otherPrefSet = facultyPreferredSlots.get(otherRealFac) || new Set();
+                                const otherAssignedSlots = facultyTimeSlotMap.get(otherRealFac) || [];
+                                if (otherPrefSet.has(l.timeSlot) && !hasConflict(l.timeSlotObject, otherAssignedSlots)) {
+                                    heuristicValue++;
+                                }
+                            }
+                        } else if (strategy === 'SCARCITY') {
+                            heuristicValue = slotRoomCount.get(l.timeSlot) || Infinity;
+                        }
+
+                        potentialAssignments.push({ lecture: l, isHappy: isHappy, val: heuristicValue });
+                    }
+                }
+
+                if (potentialAssignments.length > 0) {
+                    if (strategy === 'MRV' || strategy === 'NO_LIMIT') {
+                        const happy = potentialAssignments.filter(p => p.isHappy);
+                        if(happy.length > 0) { shuffleArray(happy); potentialAssignments = happy; }
+                        else { shuffleArray(potentialAssignments); }
+                    } else {
+                        potentialAssignments.sort((a, b) => {
+                            if (b.isHappy !== a.isHappy) return b.isHappy - a.isHappy;
+                            return a.val - b.val;
+                        });
+                    }
+
+                    const chosen = potentialAssignments[0].lecture;
+                    const isHappy = potentialAssignments[0].isHappy;
+                    schedule.set(facultyKey, { lecture: chosen, isHappy: isHappy });
+                    assignedLectureSlots.add(chosen.id);
+                    
+                    const fSlots = facultyTimeSlotMap.get(realFac) || [];
+                    fSlots.push(chosen.timeSlotObject);
+                    facultyTimeSlotMap.set(realFac, fSlots);
+
+                    if (!courseTimeSlotMap.has(currentCourse)) courseTimeSlotMap.set(currentCourse, []);
+                    courseTimeSlotMap.get(currentCourse).push(chosen.timeSlotObject);
+
+                    if (!isHappy) numUnhappy++;
+                } else {
+                    numUnhappy += 999;
+                }
+            }
+
+            return { schedule, numUnhappy };
+        }
 
 
         // --- GLOBAL STATE ---
         const COURSE_STORAGE_KEY = 'facultySchedulerCourses';
         const FACULTY_ASSIGNMENT_KEY = 'facultySchedulerAssignments';
-        const TIMESLOT_STORAGE_KEY = 'facultySchedulerCustomTimeslots'; // NEW KEY
+        const TIMESLOT_STORAGE_KEY = 'facultySchedulerTimeslots'; // REPURPOSED FOR MAIN SLOTS
+        const FROZEN_ASSIGNMENTS_KEY = 'facultySchedulerFrozen';
         let courses = [];
-        let customTimeSlots = []; // NEW ARRAY
+        let timeSlotsConfig = []; // Stores {name, capacity}
         let currentData = null;
         let facultyAssignments = new Map();
+        let frozenAssignments = new Map();
         
         // --- COURSE MANAGEMENT ---
         function loadCourses() {
@@ -789,38 +822,67 @@
             nameInput.value = '';
         }
 
-        // --- CUSTOM SLOT MANAGEMENT ---
-        function loadCustomSlots() {
-            try { customTimeSlots = JSON.parse(localStorage.getItem(TIMESLOT_STORAGE_KEY)) || []; } catch { customTimeSlots = []; }
+        // --- TIME SLOT MANAGEMENT (MANUAL CONFIG) ---
+        function loadTimeSlots() {
+            try { timeSlotsConfig = JSON.parse(localStorage.getItem(TIMESLOT_STORAGE_KEY)) || []; } catch { timeSlotsConfig = []; }
             renderTimeSlotList();
-            renderHardcodeSection(); // Update dropdowns if custom slots change
+            renderHardcodeSection();
         }
-        function saveCustomSlots() { localStorage.setItem(TIMESLOT_STORAGE_KEY, JSON.stringify(customTimeSlots)); renderHardcodeSection(); }
+        function saveTimeSlots() { localStorage.setItem(TIMESLOT_STORAGE_KEY, JSON.stringify(timeSlotsConfig)); renderHardcodeSection(); }
         function renderTimeSlotList() {
             const listEl = document.getElementById("timeslot-list");
-            document.getElementById("timeslot-count").textContent = customTimeSlots.length;
+            document.getElementById("timeslot-count").textContent = timeSlotsConfig.length;
             listEl.innerHTML = '';
-            customTimeSlots.forEach((slot, index) => {
+            timeSlotsConfig.forEach((slot, index) => {
                 const li = document.createElement('li');
-                li.innerHTML = `<span class="timeslot-details">${slot.name} (Custom)</span> <button class="remove-btn" onclick="removeTimeSlot(${index})">Remove</button>`;
+                li.innerHTML = `<span class="timeslot-details">${slot.name} (${slot.capacity} rooms)</span> <button class="remove-btn" onclick="removeTimeSlot(${index})">Remove</button>`;
                 listEl.appendChild(li);
             });
         }
-        function removeTimeSlot(index) { customTimeSlots.splice(index, 1); renderTimeSlotList(); saveCustomSlots(); }
+        function removeTimeSlot(index) { timeSlotsConfig.splice(index, 1); renderTimeSlotList(); saveTimeSlots(); }
         function addTimeSlot() {
             const nameInput = document.getElementById("timeslot-name-input");
+            const capInput = document.getElementById("timeslot-capacity-input");
             const name = nameInput.value.trim();
+            const cap = parseInt(capInput.value);
+            
             if (!name) return;
+            if (isNaN(cap) || cap < 1) { alert("Please enter a valid number of rooms (1 or more)."); return; }
+            
             const parsed = parseTimeSlot(name);
             if (!parsed) { alert("Invalid time slot format. Please use 'Day(s) HH:MM-HH:MM' format."); return; }
-            if (customTimeSlots.some(s => s.name.toLowerCase() === name.toLowerCase())) { alert("Time slot already exists."); return; }
+            if (timeSlotsConfig.some(s => s.name.toLowerCase() === name.toLowerCase())) { alert("Time slot already exists."); return; }
             
-            customTimeSlots.push({ name: name });
+            timeSlotsConfig.push({ name: name, capacity: cap });
             renderTimeSlotList();
-            saveCustomSlots();
+            saveTimeSlots();
             nameInput.value = '';
+            capInput.value = '1';
         }
         
+        // --- FROZEN ASSIGNMENTS ---
+        function loadFrozen() {
+            try { frozenAssignments = new Map(JSON.parse(localStorage.getItem(FROZEN_ASSIGNMENTS_KEY)) || []); } catch { frozenAssignments = new Map(); }
+        }
+        function saveFrozen() { localStorage.setItem(FROZEN_ASSIGNMENTS_KEY, JSON.stringify(Array.from(frozenAssignments.entries()))); }
+        
+        window.toggleFreeze = function(facultyKey, lectureId) {
+            if (frozenAssignments.has(facultyKey) && frozenAssignments.get(facultyKey) === lectureId) {
+                frozenAssignments.delete(facultyKey);
+            } else {
+                frozenAssignments.set(facultyKey, lectureId);
+            }
+            saveFrozen();
+            
+            const btn = document.activeElement;
+            if(btn && btn.tagName === 'BUTTON') {
+                const isFrozen = frozenAssignments.has(facultyKey);
+                btn.textContent = isFrozen ? "❄️" : "";
+                btn.title = isFrozen ? "Unfreeze" : "Freeze (Lock Room)";
+                if (btn.parentElement) btn.parentElement.classList.toggle("frozen");
+            }
+        }
+
         // --- UI MANAGEMENT ---
         function updateSchedulerUI() {
             const warningEl = document.getElementById("course-requirement-warning");
@@ -858,41 +920,6 @@
         }
         function saveAssignments() { localStorage.setItem(FACULTY_ASSIGNMENT_KEY, JSON.stringify(Array.from(facultyAssignments.entries()))); }
 
-        // --- NEW: Global State for Frozen Assignments ---
-                const FROZEN_KEY = 'facultySchedulerFrozen';
-                let frozenAssignments = new Map();
-
-                function loadFrozen() {
-                    try {
-                        frozenAssignments = new Map(JSON.parse(localStorage.getItem(FROZEN_KEY)) || []);
-                    } catch { frozenAssignments = new Map(); }
-                }
-
-                function saveFrozen() {
-                    localStorage.setItem(FROZEN_KEY, JSON.stringify(Array.from(frozenAssignments.entries())));
-                }
-
-        window.toggleFreeze = function(facultyKey, lectureId) {
-                    if (frozenAssignments.has(facultyKey) && frozenAssignments.get(facultyKey) === lectureId) {
-                        frozenAssignments.delete(facultyKey);
-                    } else {
-                        frozenAssignments.set(facultyKey, lectureId);
-                    }
-                    saveFrozen();
-                    
-                    // Visual feedback
-                    const btn = document.activeElement;
-                    if(btn && btn.tagName === 'BUTTON') {
-                        const isFrozen = frozenAssignments.has(facultyKey);
-                        
-                        // CHANGE: Use "" (empty) for blank box, ❄️ for frozen
-                        btn.textContent = isFrozen ? "❄️" : "";
-                        btn.title = isFrozen ? "Unfreeze" : "Freeze (Lock Room)";
-                        
-                        if (btn.parentElement) btn.parentElement.classList.toggle("frozen");
-                    }
-                }
-        
         async function parseExcelFile(file) {
             parseTimeSlotCache.clear();
             return new Promise((resolve, reject) => {
@@ -901,31 +928,46 @@
                     try {
                         const data = new Uint8Array(event.target.result);
                         const workbook = XLSX.read(data, { type: 'array' });
+                        
+                        // 1. Faculty
                         const facultySheet = workbook.Sheets['Faculty'];
                         if (!facultySheet) throw new Error("Sheet 'Faculty' not found.");
                         const facultyJson = XLSX.utils.sheet_to_json(facultySheet, { header: 1 });
                         const allFaculty = facultyJson.map(row => row[0]).filter(Boolean);
                         
-                        const timeSlotsSheet = workbook.Sheets['TimeSlots'];
-                        if (!timeSlotsSheet) throw new Error("Sheet 'TimeSlots' not found.");
-                        const timeSlotsJson = XLSX.utils.sheet_to_json(timeSlotsSheet);
+                        // 2. Time Slots (REPLACED BY MANUAL CONFIG)
+                        // We do NOT read the 'TimeSlots' sheet anymore.
+                        // Instead, we build slots from the manual config.
                         
                         const allTimeSlots = [];
                         const allLectureSlots = [];
-                        for (const row of timeSlotsJson) {
-                            const slotName = row['Time Slot Name'];
-                            const numRooms = parseInt(row['Number of Rooms'], 10);
-                            if (slotName && numRooms > 0) {
-                                const parsedSlot = parseTimeSlot(slotName);
-                                if (!parsedSlot) throw new Error(`Could not parse time slot: "${slotName}".`);
-                                allTimeSlots.push(slotName);
-                                for (let i = 1; i <= numRooms; i++) {
-                                    allLectureSlots.push({ id: `${slotName} (Room ${i})`, timeSlot: slotName, timeSlotObject: parsedSlot });
+                        
+                        timeSlotsConfig.forEach(slot => {
+                            // Slot logic: Generate one lecture object per ROOM capacity
+                            // e.g. "MWF 10-11" with capacity 2 -> Room 1, Room 2
+                            const parsed = parseTimeSlot(slot.name);
+                            if (parsed) {
+                                allTimeSlots.push(slot.name);
+                                for(let i=1; i<=slot.capacity; i++) {
+                                    allLectureSlots.push({
+                                        id: `${slot.name} (Room ${i})`,
+                                        timeSlot: slot.name,
+                                        timeSlotObject: parsed
+                                    });
                                 }
                             }
+                        });
+
+                        if(allLectureSlots.length === 0) {
+                            throw new Error("No valid Time Slots configured! Please add slots in the 'Time Slots' tab.");
                         }
-                        if (allFaculty.length > allLectureSlots.length) throw new Error(`Impossible schedule: ${allFaculty.length} faculty but only ${allLectureSlots.length} rooms.`);
                         
+                        if (allFaculty.length > allLectureSlots.length) {
+                            // Just a warning in console, we don't block
+                            console.warn(`Warning: ${allFaculty.length} faculty but only ${allLectureSlots.length} rooms.`);
+                        }
+                        
+                        // 3. Availability
                         const availabilitySheet = workbook.Sheets['Availability'];
                         if (!availabilitySheet) throw new Error("Sheet 'Availability' not found.");
                         const availabilityJson = XLSX.utils.sheet_to_json(availabilitySheet, { header: 1 });
@@ -942,7 +984,11 @@
                                 row.slice(1).forEach((cell, index) => {
                                     if (cell && ['x', '1', 'y', 'yes'].includes(String(cell).toLowerCase())) {
                                         const slotName = timeSlotHeaders[index];
-                                        if (slotName) preferredSlots.push(slotName); preferredSlotSet.add(slotName);
+                                        // Only add availability if this slot actually exists in our manual config
+                                        if (slotName && allTimeSlots.includes(slotName)) {
+                                            preferredSlots.push(slotName);
+                                            preferredSlotSet.add(slotName);
+                                        }
                                     }
                                 });
                                 teacherAvailabilityMap.set(facultyName, preferredSlots);
@@ -950,11 +996,17 @@
                             }
                         }
                         
-                        // FIX: Ensure container is populated
                         const availabilityContainer = document.getElementById("availability-container");
                         renderAvailabilityPage(allFaculty, teacherAvailabilityMap, availabilityContainer);
                         
-                        resolve({ allFaculty, allTimeSlots, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, transferableFacultyPreferredSlots: Array.from(facultyPreferredSlots.entries()).map(([k, v]) => [k, Array.from(v)]) });
+                        resolve({
+                            allFaculty,
+                            allTimeSlots,
+                            allLectureSlots,
+                            teacherAvailabilityMap,
+                            facultyPreferredSlots,
+                            transferableFacultyPreferredSlots: Array.from(facultyPreferredSlots.entries()).map(([k, v]) => [k, Array.from(v)])
+                        });
                     } catch (e) { reject(e); }
                 };
                 reader.readAsArrayBuffer(file);
@@ -1044,7 +1096,6 @@
             }
         }
 
-        // --- NEW: Render Hardcode Section ---
         function renderHardcodeSection() {
             updateHardcodeOptions();
         }
@@ -1068,33 +1119,10 @@
         
         function getTimeSlotOptionsHTML() {
             let html = '<option value="">-- Select Time Slot --</option>';
-            
-            let allSlots = [];
-            
-            // 1. Add Excel Slots (if loaded)
-            if (currentData && currentData.allTimeSlots) {
-                allSlots.push(...currentData.allTimeSlots);
-            }
-            
-            // 2. Add Custom Slots (always available)
-            customTimeSlots.forEach(slot => {
-                if (!allSlots.includes(slot.name)) {
-                    allSlots.push(slot.name);
-                }
-            });
-            
-            const sorted = [...allSlots].sort();
-
-            // Check for parseable time slots before generating options
-            const validSlots = [];
-            sorted.forEach(ts => {
-                if(parseTimeSlot(ts)) {
-                    validSlots.push(ts);
-                }
-            });
-
-            validSlots.forEach(ts => {
-                html += `<option value="${ts}">${ts}</option>`;
+            // USE MANUAL CONFIG
+            const sorted = [...timeSlotsConfig].sort((a,b) => a.name.localeCompare(b.name));
+            sorted.forEach(slot => {
+                html += `<option value="${slot.name}">${slot.name}</option>`;
             });
             return html;
         }
@@ -1112,7 +1140,6 @@
             const tsSelect = div.querySelector(".hc-timeslot");
             const facSelect = div.querySelector(".hc-course");
 
-            // Define a combined checker function
             const runChecks = () => {
                 const facValue = facSelect.value;
                 if (facValue) {
@@ -1121,22 +1148,17 @@
                 }
             };
 
-            // Add Change Listeners
             tsSelect.addEventListener("change", runChecks);
             facSelect.addEventListener("change", runChecks);
 
             container.appendChild(div);
         }
         
-        // Validation for Hardcode Section (5-Day Rule)
         function validateFiveDayRule(facultyKey) {
             if(!facultyKey) return;
             const realFac = facultyKey.split('||')[0];
-            
-            // Gather all selected timeslots for this faculty in Hardcode section
             const uniqueDays = new Set();
             const rows = document.querySelectorAll(".hardcode-row");
-            
             rows.forEach(row => {
                 const tsVal = row.querySelector(".hc-timeslot").value;
                 const facVal = row.querySelector(".hc-course").value;
@@ -1147,16 +1169,14 @@
                     }
                 }
             });
-            
             if (uniqueDays.size >= 5) {
                 alert(`Warning: Faculty '${realFac}' is assigned to teach on all 5 days! This violates the scheduling rule.`);
             }
         }
 
-        // NEW: Validation for Overlapping Hardcoded Slots
         function validateHardcodeConflicts() {
             const rows = document.querySelectorAll(".hardcode-row");
-            const facultySchedule = new Map(); // Stores [ { start, end, days, slotName } ] per faculty
+            const facultySchedule = new Map();
 
             rows.forEach(row => {
                 const tsVal = row.querySelector(".hc-timeslot").value;
@@ -1171,25 +1191,18 @@
                             facultySchedule.set(realFac, []);
                         }
                         
-                        // Check against existing slots for this faculty in the hardcode list
                         const currentAssignments = facultySchedule.get(realFac);
                         
                         for (const assigned of currentAssignments) {
-                            // Check Day Overlap
                             const daysOverlap = tsObj.days.some(d => assigned.days.includes(d));
-                            
                             if (daysOverlap) {
-                                // Check Time Overlap: (StartA < EndB) and (EndA > StartB)
                                 const timesOverlap = (tsObj.start < assigned.end) && (tsObj.end > assigned.start);
-                                
                                 if (timesOverlap) {
                                     alert(`Warning: Conflict detected for ${realFac}!\n\nThey are hardcoded for two overlapping slots:\n1. ${assigned.slotName}\n2. ${tsVal}\n\nOne of these slots would be dropped automatically!`);
-                                    return; // Stop checking after first conflict found to avoid spamming alerts
+                                    return;
                                 }
                             }
                         }
-
-                        // Add to list for next iteration checks
                         currentAssignments.push({
                             start: tsObj.start,
                             end: tsObj.end,
@@ -1213,7 +1226,6 @@
                 sel.value = val;
             });
 
-            // Update Time Slot Dropdowns across all hardcode rows
             const timeSelects = document.querySelectorAll(".hc-timeslot");
             const newTimeHtml = getTimeSlotOptionsHTML();
             timeSelects.forEach(sel => {
@@ -1254,155 +1266,137 @@
         }
 
         function renderSingleSchedule(schedule, allTimeSlots, allLectureSlots, containerEl) {
-                    const allAvailableSlots = new Set(allTimeSlots);
-                    customTimeSlots.forEach(slot => allAvailableSlots.add(slot.name));
+            // Get all available time slots (Use manual config keys)
+            const allAvailableSlots = new Set(allTimeSlots);
+            
+            const assignedMap = new Map();
+            for (const [f, a] of schedule.entries()) {
+                assignedMap.set(a.lecture.id, { faculty: f, isHappy: a.isHappy, lecture: a.lecture });
+            }
+            
+            const tsGroup = new Map();
+            for (const ts of allAvailableSlots) { tsGroup.set(ts, []); }
+            
+            for (const l of allLectureSlots) {
+                const rName = l.id.substring(l.timeSlot.length).trim();
+                const assign = assignedMap.get(l.id);
+                let assignStr;
+                if (assign) {
+                    const uhCls = assign.isHappy ? '' : 'unhappy';
                     
-                    const assignedMap = new Map();
-                    for (const [f, a] of schedule.entries()) {
-                        assignedMap.set(a.lecture.id, { faculty: f, isHappy: a.isHappy, lecture: a.lecture });
-                    }
+                    const isHardcoded = assign.lecture.id.includes("(Hardcoded)");
+                    const isFrozen = frozenAssignments.has(assign.faculty) && frozenAssignments.get(assign.faculty) === l.id;
+                    const freezeIcon = isFrozen ? "❄️" : "";
+                    const freezeTitle = isFrozen ? "Unfreeze" : "Freeze (Lock Room)";
+                    const frozenClass = isFrozen ? "frozen" : "";
                     
-                    const tsGroup = new Map();
-                    for (const ts of allAvailableSlots) { tsGroup.set(ts, []); }
+                    const safeFac = assign.faculty.replace(/'/g, "\\'");
+                    const safeId = l.id.replace(/'/g, "\\'");
                     
-                    for (const l of allLectureSlots) {
-                        const rName = l.id.substring(l.timeSlot.length).trim();
-                        const assign = assignedMap.get(l.id);
-                        let assignStr;
-                        if (assign) {
-                            const uhCls = assign.isHappy ? '' : 'unhappy';
-                            
-                            const isHardcoded = assign.lecture.id.includes("(Hardcoded)");
-                            const isFrozen = frozenAssignments.has(assign.faculty) && frozenAssignments.get(assign.faculty) === l.id;
-                            const freezeIcon = isFrozen ? "❄️" : "";
-                                                const freezeTitle = isFrozen ? "Unfreeze" : "Freeze (Lock Room)";
-                                                const frozenClass = isFrozen ? "frozen" : "";
-                            
-                            // --- FIX: Escape single quotes for names like O'Malley ---
-                            const safeFac = assign.faculty.replace(/'/g, "\\'");
-                            const safeId = l.id.replace(/'/g, "\\'");
-                            
-                            const freezeBtn = isHardcoded ? '' : `<button class="freeze-btn" onclick="toggleFreeze('${safeFac}', '${safeId}')" title="${freezeTitle}">${freezeIcon}</button>`;
-                            
-                            assignStr = `${rName}: <strong class="${uhCls} ${frozenClass}">${getLabel(assign.faculty)}</strong> ${freezeBtn}`;
-                        } else { assignStr = `${rName}: <em>(Unassigned)</em>`; }
-                        tsGroup.get(l.timeSlot).push(assignStr);
-                    }
+                    const freezeBtn = isHardcoded ? '' : `<button class="freeze-btn" onclick="toggleFreeze('${safeFac}', '${safeId}')" title="${freezeTitle}">${freezeIcon}</button>`;
                     
-                    for (const [fac, data] of schedule.entries()) {
-                        if (data.lecture.id.includes("(Hardcoded)")) {
-                            const entry = `Hardcoded: <strong class="hardcoded">${getLabel(fac)}</strong>`;
-                            if(tsGroup.has(data.lecture.timeSlot)) {
-                                tsGroup.get(data.lecture.timeSlot).unshift(entry);
-                            }
-                        }
+                    assignStr = `${rName}: <strong class="${uhCls} ${frozenClass}">${getLabel(assign.faculty)}</strong> ${freezeBtn}`;
+                } else { assignStr = `${rName}: <em>(Unassigned)</em>`; }
+                tsGroup.get(l.timeSlot).push(assignStr);
+            }
+            
+            for (const [fac, data] of schedule.entries()) {
+                if (data.lecture.id.includes("(Hardcoded)")) {
+                    const entry = `Hardcoded: <strong class="hardcoded">${getLabel(fac)}</strong>`;
+                    if(tsGroup.has(data.lecture.timeSlot)) {
+                        tsGroup.get(data.lecture.timeSlot).unshift(entry);
                     }
-
-                    let htmlContent = `<div class="card-container">`;
-                    const sortedTS = [...allAvailableSlots].sort();
-                    for (const ts of sortedTS) {
-                        const assigns = tsGroup.get(ts) || [];
-                        if (assigns.length > 0 || allTimeSlots.includes(ts)) {
-                            htmlContent += `<div class="schedule-card"><div class="card-header">${ts}</div><div class="card-body">${assigns.join('<br>')}</div></div>`;
-                        }
-                    }
-                    htmlContent += `</div>`; containerEl.innerHTML = htmlContent;
                 }
+            }
+
+            let htmlContent = `<div class="card-container">`;
+            const sortedTS = [...allAvailableSlots].sort();
+            for (const ts of sortedTS) {
+                const assigns = tsGroup.get(ts) || [];
+                // Always show defined slots, even if empty, to visualize availability
+                htmlContent += `<div class="schedule-card"><div class="card-header">${ts}</div><div class="card-body">${assigns.join('<br>')}</div></div>`;
+            }
+            htmlContent += `</div>`; containerEl.innerHTML = htmlContent;
+        }
 
         function renderMultipleHeuristics(results, allTimeSlots, allLectureSlots, containerEl) {
-                     const schemes = [{ headerBg: '#f0f6ff', headerColor: '#004a9c', cardBorder: '#b8daff' }, { headerBg: '#f0fff0', headerColor: '#155724', cardBorder: '#c3e6cb' }, { headerBg: '#fffaf0', headerColor: '#856404', cardBorder: '#ffeeba' }, { headerBg: '#e6e6e6', headerColor: '#333', cardBorder: '#ccc' }];
-                     
-                     const allAvailableSlots = new Set(allTimeSlots);
-                     customTimeSlots.forEach(slot => allAvailableSlots.add(slot.name));
+             const schemes = [{ headerBg: '#f0f6ff', headerColor: '#004a9c', cardBorder: '#b8daff' }, { headerBg: '#f0fff0', headerColor: '#155724', cardBorder: '#c3e6cb' }, { headerBg: '#fffaf0', headerColor: '#856404', cardBorder: '#ffeeba' }, { headerBg: '#e6e6e6', headerColor: '#333', cardBorder: '#ccc' }];
+             
+             const allAvailableSlots = new Set(allTimeSlots);
 
-                     let fullHtml = "";
-                     results.forEach((result, index) => {
-                        const colors = schemes[index % schemes.length];
-                        fullHtml += `<details class="heuristic-details"><summary class="heuristic-summary">${result.name}</summary><div class="heuristic-content">`;
-                        if(result.description) fullHtml += `<p style="margin-top: 10px; margin-bottom: 20px; font-size: 0.9em; font-style: italic; max-width: 800px; color: #333;">${result.description}</p>`;
-                        
-                        const assignedMap = new Map();
-                        for (const [f, a] of result.schedule.entries()) {
-                            assignedMap.set(a.lecture.id, { faculty: f, isHappy: a.isHappy, lecture: a.lecture });
-                        }
-                        
-                        const tsGroup = new Map(); for (const ts of allAvailableSlots) { tsGroup.set(ts, []); }
-                        
-                        for (const l of allLectureSlots) {
-                            const rName = l.id.substring(l.timeSlot.length).trim();
-                            const assign = assignedMap.get(l.id);
-                            let assignStr;
-                            if (assign) {
-                                const uhCls = assign.isHappy ? '' : 'unhappy';
-                                
-                                const isHardcoded = assign.lecture.id.includes("(Hardcoded)");
-                                const isFrozen = frozenAssignments.has(assign.faculty) && frozenAssignments.get(assign.faculty) === l.id;
-                                const freezeIcon = isFrozen ? "❄️" : "";
-                                const freezeTitle = isFrozen ? "Unfreeze" : "Freeze (Lock Room)";
-                                const frozenClass = isFrozen ? "frozen" : "";
-                                
-                                // --- FIX: Escape single quotes here too ---
-                                const safeFac = assign.faculty.replace(/'/g, "\\'");
-                                const safeId = l.id.replace(/'/g, "\\'");
-                                
-                                const freezeBtn = isHardcoded ? '' : `<button class="freeze-btn" onclick="toggleFreeze('${safeFac}', '${safeId}')" title="${freezeTitle}">${freezeIcon}</button>`;
-                                
-                                assignStr = `${rName}: <strong class="${uhCls} ${frozenClass}">${getLabel(assign.faculty)}</strong> ${freezeBtn}`;
-                            } else { assignStr = `${rName}: <em>(Unassigned)</em>`; }
-                            tsGroup.get(l.timeSlot).push(assignStr);
-                        }
-                        
-                        for (const [fac, data] of result.schedule.entries()) {
-                            if (data.lecture.id.includes("(Hardcoded)")) {
-                                const entry = `Hardcoded: <strong class="hardcoded">${getLabel(fac)}</strong>`;
-                                if(tsGroup.has(data.lecture.timeSlot)) tsGroup.get(data.lecture.timeSlot).unshift(entry);
-                            }
-                        }
-
-                        fullHtml += `<div class="card-container">`;
-                        const sortedTS = [...allAvailableSlots].sort();
-                        for (const ts of sortedTS) {
-                            const assigns = tsGroup.get(ts) || [];
-                            if (assigns.length > 0 || allTimeSlots.includes(ts)) {
-                                const cardStyle = `border: 1px solid ${colors.cardBorder};`;
-                                const headerStyle = `background-color: ${colors.headerBg}; color: ${colors.headerColor};`;
-                                fullHtml += `<div class="schedule-card" style="${cardStyle}"><div class="card-header" style="${headerStyle}">${ts}</div><div class="card-body">${assigns.join('<br>')}</div></div>`;
-                            }
-                        }
-                        fullHtml += `</div></div></details>`;
-                     });
-                     containerEl.innerHTML = fullHtml;
+             let fullHtml = "";
+             results.forEach((result, index) => {
+                const colors = schemes[index % schemes.length];
+                fullHtml += `<details class="heuristic-details"><summary class="heuristic-summary">${result.name}</summary><div class="heuristic-content">`;
+                if(result.description) fullHtml += `<p style="margin-top: 10px; margin-bottom: 20px; font-size: 0.9em; font-style: italic; max-width: 800px; color: #333;">${result.description}</p>`;
+                
+                const assignedMap = new Map();
+                for (const [f, a] of result.schedule.entries()) {
+                    assignedMap.set(a.lecture.id, { faculty: f, isHappy: a.isHappy, lecture: a.lecture });
                 }
+                
+                const tsGroup = new Map(); for (const ts of allAvailableSlots) { tsGroup.set(ts, []); }
+                
+                for (const l of allLectureSlots) {
+                    const rName = l.id.substring(l.timeSlot.length).trim();
+                    const assign = assignedMap.get(l.id);
+                    let assignStr;
+                    if (assign) {
+                        const uhCls = assign.isHappy ? '' : 'unhappy';
+                        
+                        const isHardcoded = assign.lecture.id.includes("(Hardcoded)");
+                        const isFrozen = frozenAssignments.has(assign.faculty) && frozenAssignments.get(assign.faculty) === l.id;
+                        const freezeIcon = isFrozen ? "❄️" : "";
+                        const freezeTitle = isFrozen ? "Unfreeze" : "Freeze (Lock Room)";
+                        const frozenClass = isFrozen ? "frozen" : "";
+                        
+                        const safeFac = assign.faculty.replace(/'/g, "\\'");
+                        const safeId = l.id.replace(/'/g, "\\'");
+                        
+                        const freezeBtn = isHardcoded ? '' : `<button class="freeze-btn" onclick="toggleFreeze('${safeFac}', '${safeId}')" title="${freezeTitle}">${freezeIcon}</button>`;
+                        
+                        assignStr = `${rName}: <strong class="${uhCls} ${frozenClass}">${getLabel(assign.faculty)}</strong> ${freezeBtn}`;
+                    } else { assignStr = `${rName}: <em>(Unassigned)</em>`; }
+                    tsGroup.get(l.timeSlot).push(assignStr);
+                }
+                
+                for (const [fac, data] of result.schedule.entries()) {
+                    if (data.lecture.id.includes("(Hardcoded)")) {
+                        const entry = `Hardcoded: <strong class="hardcoded">${getLabel(fac)}</strong>`;
+                        if(tsGroup.has(data.lecture.timeSlot)) tsGroup.get(data.lecture.timeSlot).unshift(entry);
+                    }
+                }
+
+                fullHtml += `<div class="card-container">`;
+                const sortedTS = [...allAvailableSlots].sort();
+                for (const ts of sortedTS) {
+                    const assigns = tsGroup.get(ts) || [];
+                    const cardStyle = `border: 1px solid ${colors.cardBorder};`;
+                    const headerStyle = `background-color: ${colors.headerBg}; color: ${colors.headerColor};`;
+                    fullHtml += `<div class="schedule-card" style="${cardStyle}"><div class="card-header" style="${headerStyle}">${ts}</div><div class="card-body">${assigns.join('<br>')}</div></div>`;
+                }
+                fullHtml += `</div></div></details>`;
+             });
+             containerEl.innerHTML = fullHtml;
+        }
 
         function renderAvailabilityPage(allFaculty, teacherAvailabilityMap, container) {
             let htmlContent = `<p style="margin-bottom: 15px; font-style: italic; font-size: 0.9em; padding: 10px; background-color: #f9f9f9; border-radius: 5px;">`;
             htmlContent += `<b>Legend:</b> <span style="color: #D93025; font-weight: bold;">Red text</span> indicates preferred time slots that overlap with each other.</p>`;
-            
-            const sortedFaculty = [...allFaculty].sort();
-            
+             const sortedFaculty = [...allFaculty].sort();
             for (const faculty of sortedFaculty) {
                 const rawSlots = teacherAvailabilityMap.get(faculty) || [];
-                
-                // Deduplicate to prevent self-conflicts
                 const uniqueSlots = [...new Set(rawSlots)];
                 const sortedSlots = uniqueSlots.sort();
-                
                 const parsedSlots = sortedSlots.map(s => parseTimeSlot(s)).filter(Boolean);
                 const conflictingSlots = new Set();
-
                 for (let i = 0; i < parsedSlots.length; i++) {
                     for (let j = i + 1; j < parsedSlots.length; j++) {
                         const slotA = parsedSlots[i];
                         const slotB = parsedSlots[j];
-                        
                         const daysOverlap = slotA.days.some(day => slotB.days.includes(day));
-                        
                         if (daysOverlap) {
-                            // --- FIX IS HERE ---
-                            // Old (Bugged): (slotA.end > slotA.start)
-                            // New (Fixed):  (slotA.end > slotB.start)
                             const timesOverlap = (slotA.start < slotB.end) && (slotA.end > slotB.start);
-                            
                             if (timesOverlap) {
                                 conflictingSlots.add(slotA.id);
                                 conflictingSlots.add(slotB.id);
@@ -1410,15 +1404,7 @@
                         }
                     }
                 }
-
-                const htmlList = sortedSlots.map(slotString => {
-                    if (conflictingSlots.has(slotString)) {
-                        return `<span style="color: #D93025; font-weight: bold;">${slotString}</span>`;
-                    } else {
-                        return slotString;
-                    }
-                });
-                
+                const htmlList = sortedSlots.map(slotString => { if (conflictingSlots.has(slotString)) { return `<span style="color: #D93025; font-weight: bold;">${slotString}</span>`; } else { return slotString; } });
                 htmlContent += `<div class="schedule-card"><div class="card-header">${faculty}</div><div class="card-body">${htmlList.join('<br>')}</div></div>`;
             }
             container.innerHTML = htmlContent;
@@ -1437,22 +1423,20 @@
 
         document.addEventListener("DOMContentLoaded", function() {
             loadCourses();
-            loadCustomSlots(); // NEW: Load custom slots on startup
+            loadTimeSlots(); // Load manual slots
             loadAssignments();
             loadFrozen();
             updateSchedulerUI();
             
             try { const blob = new Blob([workerCode], { type: 'application/javascript' }); workerObjectURL = URL.createObjectURL(blob); } catch(e) { console.error(e); }
             
-            // Course handlers
             document.getElementById("add-course-btn").addEventListener('click', addCourse);
             document.getElementById("course-name-input").addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addCourse(); } });
             
-            // Custom Slot handlers (NEW)
+            // New TimeSlot Handlers
             document.getElementById("add-timeslot-btn").addEventListener('click', addTimeSlot);
-            document.getElementById("timeslot-name-input").addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addTimeSlot(); } });
+            document.getElementById("timeslot-capacity-input").addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addTimeSlot(); } });
 
-            // File Upload handler
             document.getElementById("file-uploader").addEventListener('change', async (event) => {
                 const file = event.target.files[0];
                 if (!file) return;
@@ -1580,7 +1564,7 @@
                      initialBestScore: progressState.bestScore,
                      assignmentDetails: Array.from(assignmentDetailsMap.entries()),
                      hardcodedAssignments: hardcodedAssignments,
-                     frozenAssignments: Array.from(frozenAssignments.entries()) // <--- Pass the data
+                     frozenAssignments: Array.from(frozenAssignments.entries())
                 });
             }
             window.addEventListener('beforeunload', () => { if (workerObjectURL) URL.revokeObjectURL(workerObjectURL); if (currentWorker) currentWorker.terminate(); });
