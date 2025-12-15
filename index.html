@@ -921,98 +921,112 @@
         function saveAssignments() { localStorage.setItem(FACULTY_ASSIGNMENT_KEY, JSON.stringify(Array.from(facultyAssignments.entries()))); }
 
         async function parseExcelFile(file) {
-            parseTimeSlotCache.clear();
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    try {
-                        const data = new Uint8Array(event.target.result);
-                        const workbook = XLSX.read(data, { type: 'array' });
-                        
-                        // 1. Faculty
-                        const facultySheet = workbook.Sheets['Faculty'];
-                        if (!facultySheet) throw new Error("Sheet 'Faculty' not found.");
-                        const facultyJson = XLSX.utils.sheet_to_json(facultySheet, { header: 1 });
-                        const allFaculty = facultyJson.map(row => row[0]).filter(Boolean);
-                        
-                        // 2. Time Slots (REPLACED BY MANUAL CONFIG)
-                        // We do NOT read the 'TimeSlots' sheet anymore.
-                        // Instead, we build slots from the manual config.
-                        
-                        const allTimeSlots = [];
-                        const allLectureSlots = [];
-                        
-                        timeSlotsConfig.forEach(slot => {
-                            // Slot logic: Generate one lecture object per ROOM capacity
-                            // e.g. "MWF 10-11" with capacity 2 -> Room 1, Room 2
-                            const parsed = parseTimeSlot(slot.name);
-                            if (parsed) {
-                                allTimeSlots.push(slot.name);
-                                for(let i=1; i<=slot.capacity; i++) {
-                                    allLectureSlots.push({
-                                        id: `${slot.name} (Room ${i})`,
-                                        timeSlot: slot.name,
-                                        timeSlotObject: parsed
-                                    });
-                                }
-                            }
-                        });
+                    parseTimeSlotCache.clear();
+                    return new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                            try {
+                                const data = new Uint8Array(event.target.result);
+                                const workbook = XLSX.read(data, { type: 'array' });
+                                
+                                // 1. Get the first sheet (e.g. "Form Responses 1")
+                                const sheetName = workbook.SheetNames[0];
+                                const sheet = workbook.Sheets[sheetName];
+                                const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                                
+                                if (rows.length < 2) throw new Error("File appears empty or missing data.");
 
-                        if(allLectureSlots.length === 0) {
-                            throw new Error("No valid Time Slots configured! Please add slots in the 'Time Slots' tab.");
-                        }
-                        
-                        if (allFaculty.length > allLectureSlots.length) {
-                            // Just a warning in console, we don't block
-                            console.warn(`Warning: ${allFaculty.length} faculty but only ${allLectureSlots.length} rooms.`);
-                        }
-                        
-                        // 3. Availability
-                        const availabilitySheet = workbook.Sheets['Availability'];
-                        if (!availabilitySheet) throw new Error("Sheet 'Availability' not found.");
-                        const availabilityJson = XLSX.utils.sheet_to_json(availabilitySheet, { header: 1 });
-                        const timeSlotHeaders = availabilityJson[0].slice(1);
-                        const facultyAvailabilityRows = availabilityJson.slice(1);
-                        const teacherAvailabilityMap = new Map();
-                        const facultyPreferredSlots = new Map();
-                        
-                        for (const row of facultyAvailabilityRows) {
-                            const facultyName = row[0];
-                            if (facultyName) {
-                                const preferredSlots = [];
-                                const preferredSlotSet = new Set();
-                                row.slice(1).forEach((cell, index) => {
-                                    if (cell && ['x', '1', 'y', 'yes'].includes(String(cell).toLowerCase())) {
-                                        const slotName = timeSlotHeaders[index];
-                                        // Only add availability if this slot actually exists in our manual config
-                                        if (slotName && allTimeSlots.includes(slotName)) {
-                                            preferredSlots.push(slotName);
-                                            preferredSlotSet.add(slotName);
+                                // 2. Prepare Manual Slots for Matching
+                                // We parse your manually entered slots once so we can match against them mathematically
+                                // (e.g. matching "9-10 AM" from Excel to "9-10" in Manual)
+                                const manualSlotsParsed = timeSlotsConfig.map(cfg => ({
+                                    name: cfg.name,
+                                    parsed: parseTimeSlot(cfg.name)
+                                })).filter(x => x.parsed);
+
+                                const allFaculty = [];
+                                const teacherAvailabilityMap = new Map();
+                                const facultyPreferredSlots = new Map();
+
+                                // 3. Iterate Rows (Skip Header at index 0)
+                                for (let i = 1; i < rows.length; i++) {
+                                    const row = rows[i];
+                                    // Col B = Index 1 (Name)
+                                    const name = row[1];
+                                    // Col D = Index 3 (Preferences)
+                                    const prefString = row[3];
+
+                                    if (name) {
+                                        allFaculty.push(name);
+                                        const preferredSlots = [];
+                                        const preferredSlotSet = new Set();
+
+                                        if (prefString) {
+                                            // Split by comma, trim whitespace
+                                            const rawPrefs = String(prefString).split(',').map(s => s.trim());
+                                            
+                                            rawPrefs.forEach(rawPref => {
+                                                const parsedPref = parseTimeSlot(rawPref);
+                                                if (parsedPref) {
+                                                    // Find a matching slot in your Manual Config
+                                                    const match = manualSlotsParsed.find(ms => {
+                                                        const p = ms.parsed;
+                                                        // Check if Start, End, and Days match exactly
+                                                        return p.start === parsedPref.start &&
+                                                               p.end === parsedPref.end &&
+                                                               p.days.length === parsedPref.days.length &&
+                                                               p.days.every((d, idx) => d === parsedPref.days[idx]);
+                                                    });
+
+                                                    if (match) {
+                                                        preferredSlots.push(match.name);
+                                                        preferredSlotSet.add(match.name);
+                                                    }
+                                                }
+                                            });
+                                        }
+                                        
+                                        teacherAvailabilityMap.set(name, preferredSlots);
+                                        facultyPreferredSlots.set(name, preferredSlotSet);
+                                    }
+                                }
+
+                                // 4. Generate Lecture Objects from Manual Config (Same as before)
+                                const allTimeSlots = [];
+                                const allLectureSlots = [];
+                                
+                                timeSlotsConfig.forEach(slot => {
+                                    const parsed = parseTimeSlot(slot.name);
+                                    if (parsed) {
+                                        allTimeSlots.push(slot.name);
+                                        for(let i=1; i<=slot.capacity; i++) {
+                                            allLectureSlots.push({
+                                                id: `${slot.name} (Room ${i})`,
+                                                timeSlot: slot.name,
+                                                timeSlotObject: parsed
+                                            });
                                         }
                                     }
                                 });
-                                teacherAvailabilityMap.set(facultyName, preferredSlots);
-                                facultyPreferredSlots.set(facultyName, preferredSlotSet);
-                            }
-                        }
-                        
-                        const availabilityContainer = document.getElementById("availability-container");
-                        renderAvailabilityPage(allFaculty, teacherAvailabilityMap, availabilityContainer);
-                        
-                        resolve({
-                            allFaculty,
-                            allTimeSlots,
-                            allLectureSlots,
-                            teacherAvailabilityMap,
-                            facultyPreferredSlots,
-                            transferableFacultyPreferredSlots: Array.from(facultyPreferredSlots.entries()).map(([k, v]) => [k, Array.from(v)])
-                        });
-                    } catch (e) { reject(e); }
-                };
-                reader.readAsArrayBuffer(file);
-            });
-        }
 
+                                if(allLectureSlots.length === 0) throw new Error("No Time Slots defined. Please go to 'Time Slots' tab and add some.");
+
+                                const availabilityContainer = document.getElementById("availability-container");
+                                renderAvailabilityPage(allFaculty, teacherAvailabilityMap, availabilityContainer);
+                                
+                                resolve({
+                                    allFaculty,
+                                    allTimeSlots,
+                                    allLectureSlots,
+                                    teacherAvailabilityMap,
+                                    facultyPreferredSlots,
+                                    transferableFacultyPreferredSlots: Array.from(facultyPreferredSlots.entries()).map(([k, v]) => [k, Array.from(v)])
+                                });
+                            } catch (e) { reject(e); }
+                        };
+                        reader.readAsArrayBuffer(file);
+                    });
+                }
         function createAssignmentRow(courseName = "", sectionName = "") {
             let options = `<option value="">-- Select Course --</option>`;
             courses.forEach(c => { options += `<option value="${c.name}" ${c.name === courseName ? 'selected' : ''}>${c.name}</option>`; });
@@ -1265,59 +1279,76 @@
             return `${realName} <span class="course-tag">${cText}</span>`;
         }
 
-        function renderSingleSchedule(schedule, allTimeSlots, allLectureSlots, containerEl) {
-            // Get all available time slots (Use manual config keys)
-            const allAvailableSlots = new Set(allTimeSlots);
-            
-            const assignedMap = new Map();
-            for (const [f, a] of schedule.entries()) {
-                assignedMap.set(a.lecture.id, { faculty: f, isHappy: a.isHappy, lecture: a.lecture });
-            }
-            
-            const tsGroup = new Map();
-            for (const ts of allAvailableSlots) { tsGroup.set(ts, []); }
-            
-            for (const l of allLectureSlots) {
-                const rName = l.id.substring(l.timeSlot.length).trim();
-                const assign = assignedMap.get(l.id);
-                let assignStr;
-                if (assign) {
-                    const uhCls = assign.isHappy ? '' : 'unhappy';
-                    
-                    const isHardcoded = assign.lecture.id.includes("(Hardcoded)");
-                    const isFrozen = frozenAssignments.has(assign.faculty) && frozenAssignments.get(assign.faculty) === l.id;
-                    const freezeIcon = isFrozen ? "❄️" : "";
-                    const freezeTitle = isFrozen ? "Unfreeze" : "Freeze (Lock Room)";
-                    const frozenClass = isFrozen ? "frozen" : "";
-                    
-                    const safeFac = assign.faculty.replace(/'/g, "\\'");
-                    const safeId = l.id.replace(/'/g, "\\'");
-                    
-                    const freezeBtn = isHardcoded ? '' : `<button class="freeze-btn" onclick="toggleFreeze('${safeFac}', '${safeId}')" title="${freezeTitle}">${freezeIcon}</button>`;
-                    
-                    assignStr = `${rName}: <strong class="${uhCls} ${frozenClass}">${getLabel(assign.faculty)}</strong> ${freezeBtn}`;
-                } else { assignStr = `${rName}: <em>(Unassigned)</em>`; }
-                tsGroup.get(l.timeSlot).push(assignStr);
-            }
-            
-            for (const [fac, data] of schedule.entries()) {
-                if (data.lecture.id.includes("(Hardcoded)")) {
-                    const entry = `Hardcoded: <strong class="hardcoded">${getLabel(fac)}</strong>`;
-                    if(tsGroup.has(data.lecture.timeSlot)) {
-                        tsGroup.get(data.lecture.timeSlot).unshift(entry);
-                    }
-                }
-            }
+        function renderSingleSchedule(schedule, allTimeSlots, allLectureSlots, containerEl, allFacultyList = []) {
+                    // 1. Calculate Unassigned Faculty
+                    // We compare the total list of faculty (allFacultyList) against who actually got a spot in the schedule map.
+                    const scheduledKeys = new Set(schedule.keys());
+                    const unassigned = allFacultyList.filter(key => !scheduledKeys.has(key));
 
-            let htmlContent = `<div class="card-container">`;
-            const sortedTS = [...allAvailableSlots].sort();
-            for (const ts of sortedTS) {
-                const assigns = tsGroup.get(ts) || [];
-                // Always show defined slots, even if empty, to visualize availability
-                htmlContent += `<div class="schedule-card"><div class="card-header">${ts}</div><div class="card-body">${assigns.join('<br>')}</div></div>`;
-            }
-            htmlContent += `</div>`; containerEl.innerHTML = htmlContent;
-        }
+                    let warningHtml = "";
+                    if (unassigned.length > 0) {
+                        // Extract just the names (remove the ||Index part)
+                        const names = unassigned.map(k => k.split('||')[0]).join(", ");
+                        warningHtml = `
+                            <div style="background-color: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; padding: 15px; margin-bottom: 20px; border-radius: 5px;">
+                                <strong>⚠️ Unassigned Faculty:</strong> The following faculty could not be scheduled (due to course conflicts or lack of rooms):<br>
+                                <em>${names}</em>
+                            </div>`;
+                    }
+
+                    // 2. Standard Rendering Logic
+                    const allAvailableSlots = new Set(allTimeSlots);
+                    
+                    const assignedMap = new Map();
+                    for (const [f, a] of schedule.entries()) {
+                        assignedMap.set(a.lecture.id, { faculty: f, isHappy: a.isHappy, lecture: a.lecture });
+                    }
+                    
+                    const tsGroup = new Map();
+                    for (const ts of allAvailableSlots) { tsGroup.set(ts, []); }
+                    
+                    for (const l of allLectureSlots) {
+                        const rName = l.id.substring(l.timeSlot.length).trim();
+                        const assign = assignedMap.get(l.id);
+                        let assignStr;
+                        if (assign) {
+                            const uhCls = assign.isHappy ? '' : 'unhappy';
+                            const isHardcoded = assign.lecture.id.includes("(Hardcoded)");
+                            const isFrozen = frozenAssignments.has(assign.faculty) && frozenAssignments.get(assign.faculty) === l.id;
+                            const freezeIcon = isFrozen ? "❄️" : "";
+                            const freezeTitle = isFrozen ? "Unfreeze" : "Freeze (Lock Room)";
+                            const frozenClass = isFrozen ? "frozen" : "";
+                            
+                            const safeFac = assign.faculty.replace(/'/g, "\\'");
+                            const safeId = l.id.replace(/'/g, "\\'");
+                            
+                            const freezeBtn = isHardcoded ? '' : `<button class="freeze-btn" onclick="toggleFreeze('${safeFac}', '${safeId}')" title="${freezeTitle}">${freezeIcon}</button>`;
+                            
+                            assignStr = `${rName}: <strong class="${uhCls} ${frozenClass}">${getLabel(assign.faculty)}</strong> ${freezeBtn}`;
+                        } else { assignStr = `${rName}: <em>(Unassigned)</em>`; }
+                        tsGroup.get(l.timeSlot).push(assignStr);
+                    }
+                    
+                    for (const [fac, data] of schedule.entries()) {
+                        if (data.lecture.id.includes("(Hardcoded)")) {
+                            const entry = `Hardcoded: <strong class="hardcoded">${getLabel(fac)}</strong>`;
+                            if(tsGroup.has(data.lecture.timeSlot)) {
+                                tsGroup.get(data.lecture.timeSlot).unshift(entry);
+                            }
+                        }
+                    }
+
+                    let htmlContent = `<div class="card-container">`;
+                    const sortedTS = [...allAvailableSlots].sort();
+                    for (const ts of sortedTS) {
+                        const assigns = tsGroup.get(ts) || [];
+                        htmlContent += `<div class="schedule-card"><div class="card-header">${ts}</div><div class="card-body">${assigns.join('<br>')}</div></div>`;
+                    }
+                    htmlContent += `</div>`;
+                    
+                    // 3. Prepend the warning to the result
+                    containerEl.innerHTML = warningHtml + htmlContent;
+                }
 
         function renderMultipleHeuristics(results, allTimeSlots, allLectureSlots, containerEl) {
              const schemes = [{ headerBg: '#f0f6ff', headerColor: '#004a9c', cardBorder: '#b8daff' }, { headerBg: '#f0fff0', headerColor: '#155724', cardBorder: '#c3e6cb' }, { headerBg: '#fffaf0', headerColor: '#856404', cardBorder: '#ffeeba' }, { headerBg: '#e6e6e6', headerColor: '#333', cardBorder: '#ccc' }];
@@ -1547,7 +1578,7 @@
                 bestKnownSchedule = bestHeuristic.schedule;
 
                 singleArea.innerHTML = '<h3 style="border-bottom:1px solid #ccc;">Best Solution (Optimizing...)</h3>';
-                renderSingleSchedule(bestKnownSchedule, allTimeSlots, allLectureSlots, singleArea);
+                renderSingleSchedule(bestKnownSchedule, allTimeSlots, allLectureSlots, singleArea, workerFacultyList);
                 statusEl.textContent = "Heuristics completed. Running the brute force..";
                 
                 const startTime = performance.now();
