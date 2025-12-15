@@ -795,6 +795,8 @@
         let currentData = null;
         let facultyAssignments = new Map();
         let frozenAssignments = new Map();
+        let globalHeuristicResults = [];
+        
         
         // --- COURSE MANAGEMENT ---
         function loadCourses() {
@@ -886,6 +888,92 @@
             }
         }
 
+        function exportScheduleToExcel() {
+                    if (!globalHeuristicResults || globalHeuristicResults.length === 0) {
+                        alert("No schedule results available. Please click 'Generate Schedule' first.");
+                        return;
+                    }
+
+                    const workbook = XLSX.utils.book_new();
+
+                    // Human-friendly short names for Excel Tabs (Max 31 chars allowed)
+                    const sheetLabels = [
+                        "1. Prioritize Hardest",
+                        "2. Maximize Flexibility",
+                        "3. Room Scarcity",
+                        "4. Relaxed Constraints"
+                    ];
+
+                    globalHeuristicResults.forEach((result, index) => {
+                        // Use the custom label if available, otherwise fallback to "Strategy X"
+                        const sheetName = sheetLabels[index] || `Strategy ${index + 1}`;
+                        const schedule = result.schedule;
+                        
+                        const slotMap = new Map();
+                        const sortedSlots = [...timeSlotsConfig].sort((a,b) => a.name.localeCompare(b.name));
+                        
+                        let maxRooms = 0;
+                        sortedSlots.forEach(slot => {
+                            if(slot.capacity > maxRooms) maxRooms = slot.capacity;
+                            slotMap.set(slot.name, { virtual: [] });
+                        });
+
+                        for (const [facKey, assign] of schedule.entries()) {
+                            const [realName, idx] = facKey.split('||');
+                            
+                            let courseName = "Unknown";
+                            const allAssigns = facultyAssignments.get(realName);
+                            if(allAssigns && allAssigns[parseInt(idx)]) courseName = allAssigns[parseInt(idx)].course;
+                            
+                            const lecture = assign.lecture;
+                            const timeSlot = lecture.timeSlot;
+                            const fullId = lecture.id;
+                            
+                            if (!slotMap.has(timeSlot)) slotMap.set(timeSlot, { virtual: [] });
+                            const entry = slotMap.get(timeSlot);
+                            
+                            const conflictTag = assign.isHappy ? "" : " (CONFLICT)";
+                            const cellText = `${realName} (${courseName})${conflictTag}`;
+
+                            if (fullId.includes("(Hardcoded)")) {
+                                entry.virtual.push(cellText);
+                            } else {
+                                const match = fullId.match(/\(Room (\d+)\)$/);
+                                if (match) {
+                                    const roomNum = match[1];
+                                    entry[`room${roomNum}`] = cellText;
+                                }
+                            }
+                        }
+
+                        const wsData = [];
+                        const headers = ["Time Slot"];
+                        for(let i=1; i<=maxRooms; i++) headers.push(`Room ${i}`);
+                        headers.push("Hardcoded");
+                        wsData.push(headers);
+
+                        sortedSlots.forEach(slot => {
+                            const ts = slot.name;
+                            const row = [ts];
+                            const data = slotMap.get(ts);
+                            
+                            for(let i=1; i<=maxRooms; i++) {
+                                if (i <= slot.capacity) {
+                                    row.push(data[`room${i}`] || "");
+                                } else {
+                                    row.push("---");
+                                }
+                            }
+                            row.push(data.virtual.join(", "));
+                            wsData.push(row);
+                        });
+
+                        const worksheet = XLSX.utils.aoa_to_sheet(wsData);
+                        XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+                    });
+
+                    XLSX.writeFile(workbook, "Faculty_Schedule_All_Strategies.xlsx");
+                }
         // --- UI MANAGEMENT ---
         function updateSchedulerUI() {
             const warningEl = document.getElementById("course-requirement-warning");
@@ -1493,59 +1581,7 @@
             let progressState = { bestScore: Infinity };
             let bestKnownSchedule = new Map();
 
-            function exportScheduleToExcel() {
-                        if (!bestKnownSchedule || bestKnownSchedule.size === 0) {
-                            alert("No schedule to export!");
-                            return;
-                        }
-
-                        const exportData = [];
-
-                        // 1. Convert Schedule Map to Array
-                        for (const [facKey, assignment] of bestKnownSchedule.entries()) {
-                            const [realName, idx] = facKey.split('||');
-                            
-                            // Get Course Details
-                            const details = facultyAssignments.get(realName)[parseInt(idx)];
-                            const courseName = details ? details.course : "Unknown";
-                            const section = details ? details.section : "NA";
-
-                            // Get Room and Time
-                            const fullSlotId = assignment.lecture.id; // e.g. "MWF 10-11 (Room 1)"
-                            const timeSlot = assignment.lecture.timeSlot; // e.g. "MWF 10-11"
-                            
-                            // Extract Room Name
-                            const roomMatch = fullSlotId.match(/\((Room \d+)\)$/);
-                            const roomName = roomMatch ? roomMatch[1] : "Virtual/Hardcoded";
-
-                            // Determine Status
-                            let status = "Scheduled";
-                            if (fullSlotId.includes("(Hardcoded)")) status = "Hardcoded";
-                            else if (frozenAssignments.has(facKey) && frozenAssignments.get(facKey) === fullSlotId) status = "Frozen";
-
-                            exportData.push({
-                                "Faculty Name": realName,
-                                "Course": courseName,
-                                "Section": section,
-                                "Time Slot": timeSlot,
-                                "Room": roomName,
-                                "Status": status,
-                                "Conflict": assignment.isHappy ? "No" : "Yes"
-                            });
-                        }
-
-                        // 2. Sort by Faculty Name
-                        exportData.sort((a, b) => a["Faculty Name"].localeCompare(b["Faculty Name"]));
-
-                        // 3. Generate Worksheet
-                        const worksheet = XLSX.utils.json_to_sheet(exportData);
-                        const workbook = XLSX.utils.book_new();
-                        XLSX.utils.book_append_sheet(workbook, worksheet, "Schedule Results");
-
-                        // 4. Download File
-                        XLSX.writeFile(workbook, "Faculty_Schedule_Results.xlsx");
-                    }
-            
+                        
             async function runOptimizeScheduler() {
                 const statusEl = document.getElementById("status-message");
                 const singleArea = document.getElementById("single-schedule-results-area");
@@ -1627,6 +1663,7 @@
                                     numUnhappy: h4.numUnhappy
                                 });
 
+                                globalHeuristicResults = heuristicResults;
                 multiArea.innerHTML = '<h3 style="border-bottom:1px solid #ccc;">Heuristic Pre-Check</h3>';
                 renderMultipleHeuristics(heuristicResults, allTimeSlots, allLectureSlots, multiArea);
 
@@ -1637,7 +1674,7 @@
                 singleArea.innerHTML = '<h3 style="border-bottom:1px solid #ccc;">Best Solution (Optimizing...)</h3>';
                 renderSingleSchedule(bestKnownSchedule, allTimeSlots, allLectureSlots, singleArea, workerFacultyList);
                 statusEl.textContent = "Heuristics completed. Running the brute force..";
-                
+                document.getElementById("export-btn").style.display = "inline-block";
                 const startTime = performance.now();
                 document.getElementById("timer-label").textContent = "Time: 0.0s";
                 timerInterval = setInterval(() => { document.getElementById("timer-label").textContent = formatTime((performance.now() - startTime) / 1000); }, 100);
@@ -1663,10 +1700,7 @@
                                     } else if (data.type === 'complete') {
                                         clearInterval(timerInterval);
                                         document.getElementById("progress-container").style.display = 'none';
-                                        
                                        
-                                        document.getElementById("export-btn").style.display = "inline-block";
-
                                         const dur = (performance.now() - startTime) / 1000;
                                         statusEl.textContent = `Complete. Final conflicts: ${progressState.bestScore}. (${dur.toFixed(1)}s)`;
                                         statusEl.className = "success";
