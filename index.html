@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Select Semester</title>
+    <style>
+        /* Matches Scheduler App Styles */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f9;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+
+        h1 {
+            color: #004a9c;
+            font-size: 2.5em;
+            margin-bottom: 40px;
+            border-bottom: none;
+        }
+
+        .container {
+            display: flex;
+            gap: 40px;
+        }
+
+        .semester-card {
+            background-color: white;
+            border: 3px solid #004a9c;
+            border-radius: 12px;
+            padding: 50px 80px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            text-decoration: none; /* For link */
+            display: block;
+        }
+
+        .semester-card:hover {
+            transform: translateY(-5px);
+            background-color: #004a9c;
+            box-shadow: 0 10px 15px rgba(0,0,0,0.2);
+        }
+
+        /* Text inside the button */
+        .semester-label {
+            font-size: 2em;
+            font-weight: bold;
+            color: #004a9c;
+            display: block;
+        }
+
+        .semester-sub {
+            margin-top: 10px;
+            color: #666;
+            font-size: 1em;
+        }
+
+        /* Change text color on hover */
+        .semester-card:hover .semester-label,
+        .semester-card:hover .semester-sub {
+            color: white;
+        }
+
+        /* Icon styling (optional visual) */
+        .icon {
+            font-size: 3em;
+            margin-bottom: 15px;
+            display: block;
+        }
+
+    </style>
+</head>
+<body>
+
+    <h1>Select Semester</h1>
+
+    <div class="container">
+        <a href="scheduler.html" class="semester-card">
+            <span class="icon">🌸</span>
+            <span class="semester-label">Spring</span>
+            <span class="semester-sub">Go to scheduler.html</span>
+        </a>
+
+        <a href="scheduler_2.html" class="semester-card">
+            <span class="icon">🍂</span>
+            <span class="semester-label">Fall</span>
+            <span class="semester-sub">Go to scheduler_2.html</span>
+        </a>
+    </div>
+
+</body>
+</html>
