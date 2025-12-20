@@ -888,15 +888,16 @@
             }
         }
 
+        
         function exportScheduleToExcel() {
                     if (!globalHeuristicResults || globalHeuristicResults.length === 0) {
-                        alert("No schedule results available. Please click 'Generate Schedule' first.");
+                        alert("No schedule results available.");
                         return;
                     }
 
                     const workbook = XLSX.utils.book_new();
 
-                    // Human-friendly short names for Excel Tabs (Max 31 chars allowed)
+                    // Human-friendly short names for Excel Tabs
                     const sheetLabels = [
                         "1. Prioritize Hardest",
                         "2. Maximize Flexibility",
@@ -905,7 +906,6 @@
                     ];
 
                     globalHeuristicResults.forEach((result, index) => {
-                        // Use the custom label if available, otherwise fallback to "Strategy X"
                         const sheetName = sheetLabels[index] || `Strategy ${index + 1}`;
                         const schedule = result.schedule;
                         
@@ -921,9 +921,16 @@
                         for (const [facKey, assign] of schedule.entries()) {
                             const [realName, idx] = facKey.split('||');
                             
+                            // --- CHANGED: Retrieve Course AND Section ---
                             let courseName = "Unknown";
+                            let sectionName = "";
+                            
                             const allAssigns = facultyAssignments.get(realName);
-                            if(allAssigns && allAssigns[parseInt(idx)]) courseName = allAssigns[parseInt(idx)].course;
+                            if(allAssigns && allAssigns[parseInt(idx)]) {
+                                const details = allAssigns[parseInt(idx)];
+                                courseName = details.course;
+                                sectionName = details.section;
+                            }
                             
                             const lecture = assign.lecture;
                             const timeSlot = lecture.timeSlot;
@@ -933,7 +940,15 @@
                             const entry = slotMap.get(timeSlot);
                             
                             const conflictTag = assign.isHappy ? "" : " (CONFLICT)";
-                            const cellText = `${realName} (${courseName})${conflictTag}`;
+                            
+                            // --- CHANGED: Format String to include Section ---
+                            let courseDisplay = courseName;
+                            if (sectionName && sectionName !== "NA") {
+                                courseDisplay += ` [${sectionName}]`;
+                            }
+                            
+                            const cellText = `${realName} (${courseDisplay})${conflictTag}`;
+                            // -----------------------------------------------
 
                             if (fullId.includes("(Hardcoded)")) {
                                 entry.virtual.push(cellText);
@@ -949,7 +964,7 @@
                         const wsData = [];
                         const headers = ["Time Slot"];
                         for(let i=1; i<=maxRooms; i++) headers.push(`Room ${i}`);
-                        headers.push("Hardcoded");
+                        headers.push("Hardcoded"); // Updated header name
                         wsData.push(headers);
 
                         sortedSlots.forEach(slot => {
@@ -974,6 +989,7 @@
 
                     XLSX.writeFile(workbook, "Faculty_Schedule_All_Strategies.xlsx");
                 }
+        
         // --- UI MANAGEMENT ---
         function updateSchedulerUI() {
             const warningEl = document.getElementById("course-requirement-warning");
