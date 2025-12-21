@@ -1719,7 +1719,7 @@
                      frozenAssignments: Array.from(frozenAssignments.entries()),
                      initialCombinations: savedCombos
                 });
-            }
+            } 
             window.runOptimizeScheduler = runOptimizeScheduler;
             window.addEventListener('beforeunload', () => { if (workerObjectURL) URL.revokeObjectURL(workerObjectURL); if (currentWorker) currentWorker.terminate(); });
 
