@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Faculty Scheduler - Fall</title>
+    <title>Faculty Scheduler - Spring</title>
     
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0 auto; padding: 20px; max-width: 1200px; background-color: #f4f4f9; color: #333; }
         
-        /* --- UPDATED TOP MENU STYLES --- */
+        /* --- TOP MENU STYLES --- */
         .top-menu { margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
         .top-menu a { font-size: 1.0em; padding: 8px 12px; border: none; background-color: #ddd; color: #333; text-decoration: none; cursor: pointer; border-radius: 5px; transition: background-color 0.2s; }
         .top-menu a:hover { background-color: #ccc; }
@@ -104,8 +104,8 @@
 
     <div class="top-menu">
         <a href="index.html" title="Go to Home"><span class="home-icon">🏠</span></a>
-        <a href="scheduler.html">Spring</a>
-        <span class="menu-item-disabled">Fall</span>
+        <span class="menu-item-disabled">Spring</span>
+        <a href="scheduler_2.html">Fall</a>
     </div>
     <h1>Faculty Scheduler</h1>
 
@@ -662,14 +662,14 @@
 
 
         // --- GLOBAL STATE ---
-        const COURSE_STORAGE_KEY = 'facultySchedulerCourses_Fall';
-        const FACULTY_ASSIGNMENT_KEY = 'facultySchedulerAssignments_Fall';
-        const TIMESLOT_STORAGE_KEY = 'facultySchedulerTimeslots_Fall';
-        const FROZEN_ASSIGNMENTS_KEY = 'facultySchedulerFrozen_Fall';
-        const SCHEDULE_RESULTS_KEY = 'facultySchedulerResults_Fall';
-        const AVAILABILITY_STORAGE_KEY = 'facultySchedulerAvailability_Fall';
-        const LAST_PAGE_KEY = 'facultySchedulerLastPage_Fall';
-        const COMBINATIONS_KEY = 'facultySchedulerCombinations_Fall';
+        const COURSE_STORAGE_KEY = 'facultySchedulerCourses';
+        const FACULTY_ASSIGNMENT_KEY = 'facultySchedulerAssignments';
+        const TIMESLOT_STORAGE_KEY = 'facultySchedulerTimeslots';
+        const FROZEN_ASSIGNMENTS_KEY = 'facultySchedulerFrozen';
+        const SCHEDULE_RESULTS_KEY = 'facultySchedulerResults';
+        const AVAILABILITY_STORAGE_KEY = 'facultySchedulerAvailability';
+        const LAST_PAGE_KEY = 'facultySchedulerLastPage';
+        const COMBINATIONS_KEY = 'facultySchedulerCombinations'; // <--- ADDED UNIQUE KEY FOR SPRING
         
         let courses = [];
         let timeSlotsConfig = [];
@@ -990,7 +990,7 @@
                                 for (let i = 1; i < rows.length; i++) {
                                     const row = rows[i];
                                     const name = row[1];
-                                    const prefString = row[4];
+                                    const prefString = row[3];
                                     if (name) {
                                         allFaculty.push(name);
                                         const preferredSlots = [];
@@ -1469,7 +1469,7 @@
             document.querySelectorAll('nav button').forEach(el => el.classList.remove('active'));
             document.getElementById('nav-' + pageId).classList.add('active');
 
-            // 2. Save location (Persist tab for Fall)
+            // 2. Save location (Persist tab)
             localStorage.setItem(LAST_PAGE_KEY, pageId);
 
             // 3. Auto-Start Brute Force (Conditional)
@@ -1634,6 +1634,7 @@
                                                         schedule: h4.schedule,
                                                         numUnhappy: h4.numUnhappy
                                                     });
+
                     globalHeuristicResults = heuristicResults;
                     saveScheduleResults(globalHeuristicResults);
                     
