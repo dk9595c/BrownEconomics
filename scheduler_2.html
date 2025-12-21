@@ -1125,10 +1125,12 @@
         function createAssignmentRow(courseName = "", sectionName = "") {
             let options = `<option value="">-- Select Course --</option>`;
             courses.forEach(c => { options += `<option value="${c.name}" ${c.name === courseName ? 'selected' : ''}>${c.name}</option>`; });
-            let sectionOptions = `<option value="NA" ${sectionName === "NA" ? 'selected' : ''}>NA</option>
-                                  <option value="Section-1" ${sectionName === "Section-1" ? 'selected' : ''}>Section-1</option>
-                                  <option value="Section-2" ${sectionName === "Section-2" ? 'selected' : ''}>Section-2</option>
-                                  <option value="Section-3" ${sectionName === "Section-3" ? 'selected' : ''}>Section-3</option>`;
+            // REPLACE THIS BLOCK INSIDE createAssignmentRow FUNCTION
+            let sectionOptions = `<option value="NA" ${sectionName === "NA" ? 'selected' : ''}>NA</option>`;
+            for (let i = 1; i <= 10; i++) {
+                let val = `Section-${i}`;
+                sectionOptions += `<option value="${val}" ${sectionName === val ? 'selected' : ''}>${val}</option>`;
+            }
             const div = document.createElement('div');
             div.className = 'assignment-row';
             div.innerHTML = `<select class="course-select">${options}</select><select class="section-select">${sectionOptions}</select><button class="btn-remove-assign" onclick="removeAssignmentRow(this)">×</button>`;
@@ -1733,4 +1735,3 @@
     </script>
 </body>
 </html>
- 
