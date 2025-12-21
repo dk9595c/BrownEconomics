@@ -10,48 +10,13 @@
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0 auto; padding: 20px; max-width: 1200px; background-color: #f4f4f9; color: #333; }
         
-        /* --- UPDATED TOP MENU STYLES (MATCHING NAV BUTTONS) --- */
-                .top-menu {
-                    margin-bottom: 20px;
-                    display: flex;
-                    flex-wrap: wrap;
-                    gap: 10px;
-                    align-items: center;
-                    /* Dark background and padding removed to match the main app navigation */
-                }
+        /* --- UPDATED TOP MENU STYLES --- */
+        .top-menu { margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+        .top-menu a { font-size: 1.0em; padding: 8px 12px; border: none; background-color: #ddd; color: #333; text-decoration: none; cursor: pointer; border-radius: 5px; transition: background-color 0.2s; }
+        .top-menu a:hover { background-color: #ccc; }
+        .top-menu .menu-item-disabled { font-size: 1.0em; padding: 8px 12px; border: none; border-radius: 5px; background-color: #004a9c; color: white; font-weight: bold; cursor: default; pointer-events: none; }
+        .home-icon { font-size: 1.2em; vertical-align: middle; }
 
-                /* Default Button Style (Grey) - Matches 'nav button' */
-                .top-menu a {
-                    font-size: 1.0em;
-                    padding: 8px 12px;
-                    border: none;
-                    background-color: #ddd;
-                    color: #333;
-                    text-decoration: none;
-                    cursor: pointer;
-                    border-radius: 5px;
-                    transition: background-color 0.2s;
-                }
-
-                .top-menu a:hover {
-                    background-color: #ccc;
-                }
-
-                /* Active/Disabled Button Style (Blue) - Matches 'nav button.active' */
-                .top-menu .menu-item-disabled {
-                    font-size: 1.0em;
-                    padding: 8px 12px;
-                    border: none;
-                    border-radius: 5px;
-                    background-color: #004a9c;
-                    color: white;
-                    font-weight: bold;
-                    cursor: default;
-                    pointer-events: none;
-                }
-
-                .home-icon { font-size: 1.2em; vertical-align: middle; }
-                /* --------------------------- */
         h1 { color: #004a9c; border-bottom: 2px solid #ddd; padding-bottom: 10px; margin-top: 0; }
         h2 { color: #004a9c; border-bottom: 1px solid #ddd; padding-bottom: 8px; margin-top: 30px; }
         h3 { color: #333; margin-top: 25px; margin-bottom: 10px; border-bottom: 1px dashed #ccc; padding-bottom: 5px; }
@@ -138,7 +103,7 @@
 <body>
 
     <div class="top-menu">
-        <a href="landingPage.html" title="Go to Home"><span class="home-icon">🏠</span></a>
+        <a href="index.html" title="Go to Home"><span class="home-icon">🏠</span></a>
         <a href="scheduler.html">Spring</a>
         <span class="menu-item-disabled">Fall</span>
     </div>
@@ -339,7 +304,7 @@
             function shuffleArray(array) { for (let i = array.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [array[i], array[j]] = [array[j], array[i]]; } return array; }
             function yieldWorker() { return new Promise(resolve => setTimeout(resolve, 0)); }
             
-            async function solveFullSearchInWorker(allFaculty, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, assignmentDetailsMap, hardcodedAssignments, frozenAssignments, initialBestScore) {
+            async function solveFullSearchInWorker(allFaculty, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, assignmentDetailsMap, hardcodedAssignments, frozenAssignments, initialBestScore, initialCombinations) {
                 const schedule = new Map(); 
                 const assignedLectureSlots = new Set(); 
                 const facultyTimeSlotMap = new Map();
@@ -383,7 +348,14 @@
                 }
 
                 const unassignedFaculty = allFaculty.filter(f => !schedule.has(f));
-                let progressState = { facultyIndex: 0, combinations: 0, bestScore: initialBestScore };
+                
+                // Initialize Combinations from the saved value or 0
+                let progressState = { 
+                    facultyIndex: 0, 
+                    combinations: initialCombinations || 0, 
+                    bestScore: initialBestScore 
+                };
+                
                 const lectureSlotsByTime = new Map(); 
                 for (const l of allLectureSlots) { 
                     if (!lectureSlotsByTime.has(l.timeSlot)) lectureSlotsByTime.set(l.timeSlot, []); 
@@ -441,7 +413,7 @@
             
             self.onmessage = async (event) => {
                 parseTimeSlotCache.clear(); 
-                const { allFaculty, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, assignmentDetails, hardcodedAssignments, frozenAssignments, initialBestScore } = event.data;
+                const { allFaculty, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, assignmentDetails, hardcodedAssignments, frozenAssignments, initialBestScore, initialCombinations } = event.data;
                 try {
                     const reconstructedTeacherAvailabilityMap = new Map(teacherAvailabilityMap);
                     const reconstructedFacultyPreferredSlots = new Map(facultyPreferredSlots.map(([k, v]) => [k, new Set(v)]));
@@ -458,7 +430,8 @@
                         assignmentDetailsMap,
                         hardcodedAssignments,
                         frozenAssignments,
-                        initialBestScore
+                        initialBestScore,
+                        initialCombinations
                     );
                     self.postMessage({ type: 'complete', ...result });
                 } catch (error) { console.error("Error in worker:", error); self.postMessage({ type: 'error', message: error.message }); }
@@ -689,7 +662,6 @@
 
 
         // --- GLOBAL STATE ---
-        // UPDATED KEYS FOR FALL SEMESTER TO PREVENT CONFLICT
         const COURSE_STORAGE_KEY = 'facultySchedulerCourses_Fall';
         const FACULTY_ASSIGNMENT_KEY = 'facultySchedulerAssignments_Fall';
         const TIMESLOT_STORAGE_KEY = 'facultySchedulerTimeslots_Fall';
@@ -697,6 +669,7 @@
         const SCHEDULE_RESULTS_KEY = 'facultySchedulerResults_Fall';
         const AVAILABILITY_STORAGE_KEY = 'facultySchedulerAvailability_Fall';
         const LAST_PAGE_KEY = 'facultySchedulerLastPage_Fall';
+        const COMBINATIONS_KEY = 'facultySchedulerCombinations_Fall';
         
         let courses = [];
         let timeSlotsConfig = [];
@@ -704,7 +677,6 @@
         let facultyAssignments = new Map();
         let frozenAssignments = new Map();
         let globalHeuristicResults = [];
-        
         
         // --- COURSE MANAGEMENT ---
         function loadCourses() {
@@ -1018,8 +990,6 @@
                                 for (let i = 1; i < rows.length; i++) {
                                     const row = rows[i];
                                     const name = row[1];
-                                    
-                                    //Parse the column E of Excel
                                     const prefString = row[4];
                                     if (name) {
                                         allFaculty.push(name);
@@ -1491,14 +1461,32 @@
         let workerObjectURL = null;
         
         window.switchPage = function(pageId) {
-            // 1. Existing Logic: Update UI classes
+            // 1. Update UI (Standard logic)
             document.querySelectorAll('.page-section').forEach(el => el.classList.remove('active-section'));
             document.getElementById('page-' + pageId).classList.add('active-section');
             document.querySelectorAll('nav button').forEach(el => el.classList.remove('active'));
             document.getElementById('nav-' + pageId).classList.add('active');
 
-            // 2. New Logic: Save the current page ID to storage
+            // 2. Save location (Persist tab for Fall)
             localStorage.setItem(LAST_PAGE_KEY, pageId);
+
+            // 3. Auto-Start Brute Force (Conditional)
+            if (pageId === 'results') {
+                // Check A: Do we have the excel data loaded?
+                // Check B: Do we have faculty assignments?
+                // Check C: Is a worker NOT already running?
+                if (currentData && facultyAssignments.size > 0 && !currentWorker) {
+                    
+                    // Sync latest changes before starting
+                    collectAndSaveAssignments();
+
+                    // Run the optimizer if it exists
+                    if (window.runOptimizeScheduler) {
+                        console.log("Auto-starting brute force optimization...");
+                        window.runOptimizeScheduler();
+                    }
+                }
+            }
         };
         
         document.addEventListener("DOMContentLoaded", function() {
@@ -1514,8 +1502,10 @@
             
             // --- RESTORE SAVED SCHEDULE ON LOAD ---
             restoreSavedResults();
+
+            // SWITCH TO SAVED PAGE
             const lastPage = localStorage.getItem(LAST_PAGE_KEY) || 'courses';
-                switchPage(lastPage);
+            switchPage(lastPage);
             
             try { const blob = new Blob([workerCode], { type: 'application/javascript' }); workerObjectURL = URL.createObjectURL(blob); } catch(e) { console.error(e); }
             
@@ -1531,6 +1521,7 @@
                 
                 // --- CLEAR SAVED RESULTS ON NEW FILE UPLOAD ---
                 localStorage.removeItem(SCHEDULE_RESULTS_KEY);
+                localStorage.removeItem(COMBINATIONS_KEY); // Reset combo count
                 globalHeuristicResults = [];
                 document.getElementById("single-schedule-results-area").innerHTML = "";
                 document.getElementById("multi-schedule-results-area").innerHTML = "";
@@ -1570,7 +1561,8 @@
                 statusEl.className = "info";
                 statusEl.style.display = 'block';
                 document.getElementById("progress-container").style.display = 'block';
-                singleArea.innerHTML = "";
+                
+                // Ensure results area is visible
                 multiArea.style.display = 'block';
 
                 const { allFaculty, allTimeSlots, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, transferableFacultyPreferredSlots } = currentData;
@@ -1600,93 +1592,97 @@
                     }
                 });
 
-                const heuristicResults = [];
+                // ONLY RUN HEURISTICS IF WE DON'T HAVE SAVED RESULTS
+                // This prevents "flashing" the UI if we are just reloading to continue brute force
+                if (!globalHeuristicResults || globalHeuristicResults.length === 0) {
+                    const heuristicResults = [];
+                    // ... (Your existing Heuristic H1, H2, H3, H4 calls) ...
+                    const h1 = runHeuristic('MRV', workerFacultyList, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, assignmentDetailsMap, hardcodedAssignments);
+                    heuristicResults.push({ name: `Strategy 1: Prioritize Hardest (Conflicts: ${h1.numUnhappy})`, schedule: h1.schedule, numUnhappy: h1.numUnhappy });
+                    
+                    const h2 = runHeuristic('LCV', workerFacultyList, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, assignmentDetailsMap, hardcodedAssignments);
+                    heuristicResults.push({ name: `Strategy 2: Maximize Flexibility (Conflicts: ${h2.numUnhappy})`, schedule: h2.schedule, numUnhappy: h2.numUnhappy });
+
+                    const h3 = runHeuristic('SCARCITY', workerFacultyList, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, assignmentDetailsMap, hardcodedAssignments);
+                    heuristicResults.push({ name: `Strategy 3: Room Scarcity (Conflicts: ${h3.numUnhappy})`, schedule: h3.schedule, numUnhappy: h3.numUnhappy });
+
+                    const h4 = runHeuristic('NO_LIMIT', workerFacultyList, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, assignmentDetailsMap, hardcodedAssignments);
+                    heuristicResults.push({ name: `Strategy 4: Relaxed Constraints (Conflicts: ${h4.numUnhappy})`, schedule: h4.schedule, numUnhappy: h4.numUnhappy });
+
+                    globalHeuristicResults = heuristicResults;
+                    saveScheduleResults(globalHeuristicResults);
+                    
+                    multiArea.innerHTML = '<h3 style="border-bottom:1px solid #ccc;">Heuristic Pre-Check</h3>';
+                    renderMultipleHeuristics(heuristicResults, allTimeSlots, allLectureSlots, multiArea);
+                }
+
+                // Determine Best Score to beat
+                let bestHeuristic = globalHeuristicResults.reduce((best, current) => current.numUnhappy < best.numUnhappy ? current : best, globalHeuristicResults[0]);
                 
-                                const h1 = runHeuristic('MRV', workerFacultyList, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, assignmentDetailsMap, hardcodedAssignments);
-                                heuristicResults.push({
-                                    name: `Strategy 1: Prioritize Hardest-to-Schedule (Conflicts: ${h1.numUnhappy})`,
-                                    description: "<b>How it works:</b> This strategy identifies faculty members with the fewest available time slots (the most restricted schedules) and assigns them first. It prioritizes their preferred happy slots. <br><b>Why use it:</b> It prevents the system from painting itself into a corner by leaving difficult faculty for the end when no good slots remain. It strictly enforces the 5-day work week limit.",
-                                    schedule: h1.schedule,
-                                    numUnhappy: h1.numUnhappy
-                                });
-                                
-                                const h2 = runHeuristic('LCV', workerFacultyList, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, assignmentDetailsMap, hardcodedAssignments);
-                                heuristicResults.push({
-                                    name: `Strategy 2: Maximize Future Flexibility (Conflicts: ${h2.numUnhappy})`,
-                                    description: "<b>How it works:</b> Like Strategy 1, this tackles restricted faculty first. However, when choosing a time slot, it calculates which slot effectively leaves the most doors open for the remaining unassigned colleagues (Least Constraining Value). <br><b>Why use it:</b> This is often the smartest approach for complex schedules, as it tries to avoid making selfish choices early on that block everyone else.",
-                                    schedule: h2.schedule,
-                                    numUnhappy: h2.numUnhappy
-                                });
+                // Restore saved best score if it's better than heuristic
+                // (This happens if brute force found something good before reload)
+                if (progressState.bestScore < bestHeuristic.numUnhappy) {
+                    // Keep existing progressState.bestScore
+                } else {
+                    progressState.bestScore = bestHeuristic.numUnhappy;
+                    bestKnownSchedule = bestHeuristic.schedule;
+                }
 
-                                const h3 = runHeuristic('SCARCITY', workerFacultyList, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, assignmentDetailsMap, hardcodedAssignments);
-                                heuristicResults.push({
-                                    name: `Strategy 3: Room Scarcity Optimization (Conflicts: ${h3.numUnhappy})`,
-                                    description: "<b>How it works:</b> This approach prioritizes filling time slots that have fewer total rooms available. <br><b>Why use it:</b> By consuming the rare time slots early with faculty who can use them, it saves the abundant time slots (with many rooms) for the rest of the faculty, balancing the load across the week.",
-                                    schedule: h3.schedule,
-                                    numUnhappy: h3.numUnhappy
-                                });
-
-                                const h4 = runHeuristic('NO_LIMIT', workerFacultyList, allLectureSlots, teacherAvailabilityMap, facultyPreferredSlots, assignmentDetailsMap, hardcodedAssignments);
-                                heuristicResults.push({
-                                    name: `Strategy 4: Relaxed Constraints (Allow 5-Day Week) (Conflicts: ${h4.numUnhappy})`,
-                                    description: "<b>How it works:</b> This runs the standard prioritization algorithm but <b>ignores the rule against teaching 5 days a week</b> (Mon-Fri). <br><b>Why use it:</b> Use this as a diagnostic tool. If this strategy has significantly fewer conflicts than the others, it confirms that the No 5-Day Week rule is the primary bottleneck in your schedule.",
-                                    schedule: h4.schedule,
-                                    numUnhappy: h4.numUnhappy
-                                });
-
-                                globalHeuristicResults = heuristicResults;
-                                
-                                // --- SAVE RESULTS AFTER GENERATION ---
-                                saveScheduleResults(globalHeuristicResults);
-
-                multiArea.innerHTML = '<h3 style="border-bottom:1px solid #ccc;">Heuristic Pre-Check</h3>';
-                renderMultipleHeuristics(heuristicResults, allTimeSlots, allLectureSlots, multiArea);
-
-                let bestHeuristic = heuristicResults.reduce((best, current) => current.numUnhappy < best.numUnhappy ? current : best, heuristicResults[0]);
-                progressState.bestScore = bestHeuristic.numUnhappy;
-                bestKnownSchedule = bestHeuristic.schedule;
+                // *** NEW: LOAD SAVED COMBINATIONS ***
+                const savedCombos = parseInt(localStorage.getItem(COMBINATIONS_KEY)) || 0;
 
                 singleArea.innerHTML = '<h3 style="border-bottom:1px solid #ccc;">Best Solution (Optimizing...)</h3>';
                 renderSingleSchedule(bestKnownSchedule, allTimeSlots, allLectureSlots, singleArea, workerFacultyList);
-                statusEl.textContent = "Heuristics completed. Running the brute force..";
+                
+                statusEl.textContent = `Resuming optimization (Conflicts: ${progressState.bestScore})...`;
                 document.getElementById("export-btn").style.display = "inline-block";
+                
                 const startTime = performance.now();
                 document.getElementById("timer-label").textContent = "Time: 0.0s";
                 timerInterval = setInterval(() => { document.getElementById("timer-label").textContent = formatTime((performance.now() - startTime) / 1000); }, 100);
 
                 try { currentWorker = new Worker(workerObjectURL); } catch(e) { console.error(e); return; }
 
+                // *** NEW: Throttling Variable ***
+                let lastSaveTime = 0;
+
                 currentWorker.onmessage = (event) => {
-                                    const data = event.data;
-                                    if (data.type === 'progressUpdate') {
-                                        const pct = ((data.facultyIndex / (data.totalToAssign || 1)) * 100).toFixed(1);
-                                        document.getElementById("progress-bar").style.width = pct + '%';
-                                        document.getElementById("progress-label").textContent = `Optimizing... (${pct}%)`;
-                                        document.getElementById("combo-label").textContent = `Combinations: ${data.combinations.toLocaleString()}`;
-                                    } else if (data.type === 'solutionUpdate') {
-                                        if (data.score < progressState.bestScore) {
-                                            progressState.bestScore = data.score;
-                                            bestKnownSchedule = new Map(data.schedule);
-                                            singleArea.innerHTML = '<h3 style="border-bottom:1px solid #ccc;">New Best Solution!</h3>';
-                                            renderSingleSchedule(bestKnownSchedule, allTimeSlots, allLectureSlots, singleArea, workerFacultyList);
-                                            statusEl.textContent = `New best found! Conflicts: ${progressState.bestScore}.`;
-                                            statusEl.className = "improved";
-                                        }
-                                    } else if (data.type === 'complete') {
-                                        clearInterval(timerInterval);
-                                        document.getElementById("progress-container").style.display = 'none';
-                                        const dur = (performance.now() - startTime) / 1000;
-                                        statusEl.textContent = `Complete. Final conflicts: ${progressState.bestScore}. (${dur.toFixed(1)}s)`;
-                                        statusEl.className = "success";
-                                        if (data.finalScore < bestHeuristic.numUnhappy) {
-                                             singleArea.innerHTML = '<h3 style="border-bottom:1px solid #ccc;">Final Optimal Solution</h3>';
-                                             renderSingleSchedule(bestKnownSchedule, allTimeSlots, allLectureSlots, singleArea, workerFacultyList);
-                                        } else {
-                                             singleArea.innerHTML = '<h3 style="border-bottom:1px solid #ccc;">Heuristic Solution (Was Optimal)</h3>';
-                                             renderSingleSchedule(bestKnownSchedule, allTimeSlots, allLectureSlots, singleArea, workerFacultyList);
-                                        }
-                                    }
-                                };
+                    const data = event.data;
+                    if (data.type === 'progressUpdate') {
+                        const pct = ((data.facultyIndex / (data.totalToAssign || 1)) * 100).toFixed(1);
+                        document.getElementById("progress-bar").style.width = pct + '%';
+                        document.getElementById("progress-label").textContent = `Optimizing... (${pct}%)`;
+                        document.getElementById("combo-label").textContent = `Combinations: ${data.combinations.toLocaleString()}`;
+                        
+                        // *** NEW: Save every 10 seconds ***
+                        const now = Date.now();
+                        if (now - lastSaveTime > 10000) { // 10,000 ms = 10 seconds
+                            localStorage.setItem(COMBINATIONS_KEY, data.combinations);
+                            lastSaveTime = now;
+                        }
+
+                    } else if (data.type === 'solutionUpdate') {
+                        if (data.score < progressState.bestScore) {
+                            progressState.bestScore = data.score;
+                            bestKnownSchedule = new Map(data.schedule);
+                            
+                            // Update UI
+                            singleArea.innerHTML = '<h3 style="border-bottom:1px solid #ccc;">New Best Solution!</h3>';
+                            renderSingleSchedule(bestKnownSchedule, allTimeSlots, allLectureSlots, singleArea, workerFacultyList);
+                            statusEl.textContent = `New best found! Conflicts: ${progressState.bestScore}.`;
+                            statusEl.className = "improved";
+                        }
+                    } else if (data.type === 'complete') {
+                        clearInterval(timerInterval);
+                        document.getElementById("progress-container").style.display = 'none';
+                        const dur = (performance.now() - startTime) / 1000;
+                        statusEl.textContent = `Complete. Final conflicts: ${progressState.bestScore}. (${dur.toFixed(1)}s)`;
+                        statusEl.className = "success";
+                        
+                        // Clear the saved combos since we finished
+                        localStorage.removeItem(COMBINATIONS_KEY);
+                    }
+                };
                 
                 currentWorker.postMessage({
                      allFaculty: workerFacultyList,
@@ -1696,10 +1692,20 @@
                      initialBestScore: progressState.bestScore,
                      assignmentDetails: Array.from(assignmentDetailsMap.entries()),
                      hardcodedAssignments: hardcodedAssignments,
-                     frozenAssignments: Array.from(frozenAssignments.entries())
+                     frozenAssignments: Array.from(frozenAssignments.entries()),
+                     initialCombinations: savedCombos
                 });
             }
+            window.runOptimizeScheduler = runOptimizeScheduler;
             window.addEventListener('beforeunload', () => { if (workerObjectURL) URL.revokeObjectURL(workerObjectURL); if (currentWorker) currentWorker.terminate(); });
+
+            // 2. FORCE START on Page Load (KICKSTART)
+            // We manually check if we landed on 'results' and have data.
+            const startPage = localStorage.getItem(LAST_PAGE_KEY);
+            if (startPage === 'results' && currentData && facultyAssignments.size > 0) {
+                console.log("Page loaded on Results tab with data. Auto-starting optimization...");
+                runOptimizeScheduler();
+            }
         });
     </script>
 </body>
